@@ -2,6 +2,10 @@
 node_modules
 .env
 .env.local
+.codex/
+CODEX_KICKOFF_PROMPT.md
+MASTER_PROMPT_CODEX.md
+PROJECT_SETUP_CHECKLIST.md
 *.log
 coverage
 dist
