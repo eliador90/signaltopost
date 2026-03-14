@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum IdeaSource {
+  TELEGRAM
+  GITHUB
+  MANUAL
+  SYSTEM
+}
+
+enum IdeaStatus {
+  NEW
+  PROCESSED
+  ARCHIVED
+}
+
+enum GithubEventType {
+  COMMIT
+  PULL_REQUEST
+  ISSUE
+  RELEASE
+  README_UPDATE
+  REPOSITORY
+}
+
+enum DraftPlatform {
+  X
+  LINKEDIN
+}
+
+enum DraftStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SCHEDULED
+  POSTED
+  FAILED
+}
+
+enum PostJobStatus {
+  PENDING
+  READY_FOR_MANUAL_POST
+  PROCESSING
+  POSTED
+  FAILED
+}
+
+enum FeedbackAction {
+  APPROVED
+  REJECTED
+  REWRITTEN_SHORTER
+  REWRITTEN_SHARPER
+  REWRITTEN_MORE_PERSONAL
+  EDITED
+  SCHEDULED
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String?
+  telegramChatId String          @unique
+  timezone       String
+  createdAt      DateTime        @default(now())
+  ideas          Idea[]
+  githubEvents   GithubEvent[]
+  drafts         Draft[]
+  postJobs       PostJob[]
+  feedbackEvents FeedbackEvent[]
+}
+
+model Idea {
+  id                String      @id @default(cuid())
+  userId            String
+  source            IdeaSource
+  rawContent        String
+  normalizedContent String?
+  status            IdeaStatus  @default(NEW)
+  createdAt         DateTime    @default(now())
+  processedAt       DateTime?
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  drafts            Draft[]
+}
+
+model GithubEvent {
+  id             String          @id @default(cuid())
+  userId         String
+  repoName       String
+  eventType      GithubEventType
+  title          String
+  body           String?
+  eventTimestamp DateTime
+  fingerprint    String          @unique
+  processed      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  drafts         Draft[]
+}
+
+model Draft {
+  id                  String       @id @default(cuid())
+  userId              String
+  platform            DraftPlatform
+  content             String
+  sourceIdeaId        String?
+  sourceGithubEventId String?
+  status              DraftStatus  @default(DRAFT)
+  qualityScore        Float?
+  scheduledFor        DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceIdea          Idea?        @relation(fields: [sourceIdeaId], references: [id], onDelete: SetNull)
+  sourceGithubEvent   GithubEvent? @relation(fields: [sourceGithubEventId], references: [id], onDelete: SetNull)
+  postJobs            PostJob[]
+  feedbackEvents      FeedbackEvent[]
+}
+
+model PostJob {
+  id             String        @id @default(cuid())
+  userId         String
+  draftId        String        @unique
+  platform       DraftPlatform
+  scheduledFor   DateTime
+  status         PostJobStatus @default(PENDING)
+  externalPostId String?
+  failureReason  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft          Draft         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+}
+
+model FeedbackEvent {
+  id        String         @id @default(cuid())
+  userId    String
+  draftId   String
+  action    FeedbackAction
+  notes     String?
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft     Draft          @relation(fields: [draftId], references: [id], onDelete: Cascade)
+}
