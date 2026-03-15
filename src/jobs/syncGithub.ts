@@ -1,3 +1,6 @@
+import { ingestGithubEvents } from "@/services/github/ingest";
+
 export async function runGithubSyncJob() {
-  return { synced: 0, phase: 2 };
+  const result = await ingestGithubEvents();
+  return { ...result, phase: 2 };
 }

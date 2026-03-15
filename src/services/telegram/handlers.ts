@@ -1,7 +1,7 @@
-import { FeedbackAction } from "@prisma/client";
+import { DraftPlatform, FeedbackAction } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { generateDraftPair } from "@/services/ai/generateDrafts";
+import { generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
 import { formatDateTime } from "@/lib/time";
@@ -9,7 +9,7 @@ import { schedulePost, type SchedulePreset } from "@/services/posts/scheduler";
 import { normalizeIdea } from "@/services/ideas/normalize";
 import { answerCallbackQuery, sendTelegramMessage } from "@/services/telegram/bot";
 import { handleCommand } from "@/services/telegram/commands";
-import { draftKeyboard, scheduleKeyboard } from "@/services/telegram/keyboards";
+import { draftKeyboard, ideaPlatformKeyboard, scheduleKeyboard } from "@/services/telegram/keyboards";
 import { isCommand, parseCommand } from "@/services/telegram/parser";
 import type { TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "@/types/telegram";
 
@@ -59,32 +59,11 @@ async function handleIncomingMessage(message: TelegramMessage) {
     normalizedContent,
   });
 
-  await sendTelegramMessage(chatId, "Idea saved. Drafting one X post and one LinkedIn post now.");
-
-  const drafts = await generateDraftPair(normalizedContent);
-
-  for (const draft of drafts) {
-    const storedDraft = await prisma.draft.create({
-      data: {
-        userId: user.id,
-        platform: draft.platform,
-        content: draft.content,
-        sourceIdeaId: idea.id,
-        status: "PENDING_REVIEW",
-        qualityScore: draft.qualityScore,
-      },
-    });
-
-    await sendDraftForReview(chatId, storedDraft.id);
-  }
-
-  await prisma.idea.update({
-    where: { id: idea.id },
-    data: {
-      status: "PROCESSED",
-      processedAt: new Date(),
-    },
-  });
+  await sendTelegramMessage(
+    chatId,
+    "Idea saved. Which platform do you want a draft for?",
+    ideaPlatformKeyboard(idea.id),
+  );
 }
 
 async function handleCallback(callbackQuery: TelegramCallbackQuery) {
@@ -96,6 +75,11 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
   }
 
   const [scope, action, draftId] = data.split(":");
+  if (scope === "idea") {
+    await handleIdeaCallback(callbackQuery, action, draftId, chatId);
+    return;
+  }
+
   if (scope !== "draft") {
     return;
   }
@@ -191,6 +175,72 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
   }
 }
 
+async function handleIdeaCallback(
+  callbackQuery: TelegramCallbackQuery,
+  action: string,
+  ideaId: string,
+  chatId: string,
+) {
+  const idea = await prisma.idea.findUnique({
+    where: { id: ideaId },
+    include: { user: true },
+  });
+
+  if (!idea || idea.user.telegramChatId !== chatId) {
+    await answerCallbackQuery(callbackQuery.id, "Idea not found.");
+    return;
+  }
+
+  const existingDrafts = await prisma.draft.count({
+    where: { sourceIdeaId: idea.id },
+  });
+
+  if (existingDrafts > 0) {
+    await answerCallbackQuery(callbackQuery.id, "Drafts already created for this idea.");
+    return;
+  }
+
+  const platforms = getPlatformsForAction(action);
+  if (!platforms) {
+    await answerCallbackQuery(callbackQuery.id, "Unknown platform selection.");
+    return;
+  }
+
+  await answerCallbackQuery(callbackQuery.id, "Generating drafts");
+  await sendTelegramMessage(
+    chatId,
+    `Generating ${platforms.length === 2 ? "X and LinkedIn" : platforms[0]} draft${
+      platforms.length === 1 ? "" : "s"
+    } now.`,
+  );
+
+  const source = idea.normalizedContent ?? idea.rawContent;
+  const drafts = await generateDraftsForPlatforms(platforms, source);
+
+  for (const draft of drafts) {
+    const storedDraft = await prisma.draft.create({
+      data: {
+        userId: idea.userId,
+        platform: draft.platform,
+        content: draft.content,
+        sourceIdeaId: idea.id,
+        status: "PENDING_REVIEW",
+        qualityScore: draft.qualityScore,
+      },
+    });
+
+    await sendDraftForReview(chatId, storedDraft.id);
+  }
+
+  await prisma.idea.update({
+    where: { id: idea.id },
+    data: {
+      status: "PROCESSED",
+      processedAt: new Date(),
+    },
+  });
+}
+
 async function rewriteAndResendDraft(
   draftId: string,
   userId: string,
@@ -256,4 +306,17 @@ export async function sendDraftForReview(chatId: string, draftId: string) {
 function isAllowedChat(chatId: string) {
   const allowedChatId = process.env.TELEGRAM_ALLOWED_CHAT_ID;
   return !allowedChatId || allowedChatId === chatId;
+}
+
+function getPlatformsForAction(action: string) {
+  switch (action) {
+    case "draft_x":
+      return [DraftPlatform.X];
+    case "draft_linkedin":
+      return [DraftPlatform.LINKEDIN];
+    case "draft_both":
+      return [DraftPlatform.X, DraftPlatform.LINKEDIN];
+    default:
+      return null;
+  }
 }

@@ -53,6 +53,7 @@ Files:
 
 Purpose:
 - store incoming Telegram messages as ideas
+- ask the user which platform should be drafted
 - send back generated drafts
 - process approve, reject, rewrite, and schedule actions
 
@@ -68,6 +69,7 @@ Purpose:
 - normalize raw ideas
 - generate X and LinkedIn drafts
 - rewrite drafts on demand
+- respect explicit user instructions in the source text, such as requested length or sentence count
 
 Behavior:
 - if the OpenAI API is unavailable or quota is exhausted, the app falls back to local template-based generation instead of failing the webhook
@@ -90,6 +92,36 @@ Purpose:
 
 Current limitation:
 - schedule persistence exists, but automatic publishing is not implemented yet
+
+### GitHub ingestion
+
+Files:
+- [src/services/github/client.ts](C:\Users\remok\projects\signaltopost\src\services\github\client.ts)
+- [src/services/github/ingest.ts](C:\Users\remok\projects\signaltopost\src\services\github\ingest.ts)
+- [src/services/github/summarize.ts](C:\Users\remok\projects\signaltopost\src\services\github\summarize.ts)
+- [src/jobs/syncGithub.ts](C:\Users\remok\projects\signaltopost\src\jobs\syncGithub.ts)
+
+Purpose:
+- fetch recent GitHub commits, merged pull requests, issues, and repo descriptions from configured repositories
+- deduplicate them with stable fingerprints
+- store them in `github_events`
+- summarize them into GitHub-sourced ideas for later draft generation
+
+Current implementation details:
+- reads repositories from `GITHUB_REPOS`
+- assumes a single owner from `GITHUB_USERNAME`
+- uses REST polling through the cron route rather than GitHub webhooks
+
+### Morning digest
+
+Files:
+- [src/jobs/sendMorningDigest.ts](C:\Users\remok\projects\signaltopost\src\jobs\sendMorningDigest.ts)
+- [src/app/api/cron/morning_digest/route.ts](C:\Users\remok\projects\signaltopost\src\app\api\cron\morning_digest\route.ts)
+
+Purpose:
+- run GitHub sync
+- generate drafts from new ideas
+- send a compact morning digest into Telegram with top GitHub signals and pending review drafts
 
 ### Admin pages
 

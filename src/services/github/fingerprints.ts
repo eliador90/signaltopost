@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export function fingerprintGithubEvent(input: string) {
-  return Buffer.from(input).toString("base64");
+  return createHash("sha256").update(input).digest("hex");
 }

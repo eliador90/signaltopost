@@ -58,10 +58,11 @@ export default async function HomePage() {
             <span className="pill">Idea capture</span>
             <span className="pill">OpenAI drafts</span>
             <span className="pill">Approve / reject</span>
+            <span className="pill">GitHub sync</span>
           </div>
           <p className="muted">
-            This first build focuses on the end-to-end review loop before GitHub
-            ingestion, scheduling, and publishing adapters.
+            The current build covers the Telegram review loop and the first
+            GitHub-to-draft ingestion path before publishing adapters.
           </p>
         </article>
         <article className="card">

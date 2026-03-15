@@ -49,3 +49,10 @@ export const env = envSchema.parse({
   LINKEDIN_ACCESS_TOKEN: process.env.LINKEDIN_ACCESS_TOKEN,
   CRON_SECRET: process.env.CRON_SECRET,
 });
+
+export function getConfiguredGithubRepos() {
+  return (env.GITHUB_REPOS ?? "")
+    .split(",")
+    .map((repo) => repo.trim())
+    .filter(Boolean);
+}

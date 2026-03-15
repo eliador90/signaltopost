@@ -26,6 +26,11 @@ export async function generatePlatformDraft(platform: DraftPlatform, source: str
   return { platform, content, qualityScore };
 }
 
+export async function generateDraftsForPlatforms(platforms: DraftPlatform[], source: string) {
+  const drafts = await Promise.all(platforms.map((platform) => generatePlatformDraft(platform, source)));
+  return drafts;
+}
+
 function fallbackDraft(source: string, platform: DraftPlatform) {
   if (platform === DraftPlatform.X) {
     return [

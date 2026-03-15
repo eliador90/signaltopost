@@ -1,3 +1,15 @@
+export function ideaPlatformKeyboard(ideaId: string) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "Draft for X", callback_data: `idea:draft_x:${ideaId}` },
+        { text: "Draft for LinkedIn", callback_data: `idea:draft_linkedin:${ideaId}` },
+      ],
+      [{ text: "Draft for Both", callback_data: `idea:draft_both:${ideaId}` }],
+    ],
+  };
+}
+
 export function draftKeyboard(draftId: string) {
   return {
     inline_keyboard: [

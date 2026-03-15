@@ -13,6 +13,20 @@ export async function runGenerateDraftsJob() {
   const ranked = rankIdeas(ideas);
 
   for (const idea of ranked) {
+    const existingDrafts = await prisma.draft.count({
+      where: {
+        sourceIdeaId: idea.id,
+      },
+    });
+
+    if (existingDrafts > 0) {
+      await prisma.idea.update({
+        where: { id: idea.id },
+        data: { status: "PROCESSED", processedAt: new Date() },
+      });
+      continue;
+    }
+
     const drafts = await generateDraftPair(idea.normalizedContent ?? idea.rawContent);
     for (const draft of drafts) {
       await prisma.draft.create({
