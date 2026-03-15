@@ -1,4 +1,4 @@
-import { DraftPlatform } from "@prisma/client";
+import { IdeaSource, DraftPlatform, type Idea } from "@prisma/client";
 import { generateText } from "@/services/ai/client";
 import { buildLinkedInDraftPrompt } from "@/services/ai/prompts/draft_linkedin";
 import { buildXDraftPrompt } from "@/services/ai/prompts/draft_x";
@@ -29,6 +29,14 @@ export async function generatePlatformDraft(platform: DraftPlatform, source: str
 export async function generateDraftsForPlatforms(platforms: DraftPlatform[], source: string) {
   const drafts = await Promise.all(platforms.map((platform) => generatePlatformDraft(platform, source)));
   return drafts;
+}
+
+export function buildDraftSourceFromIdea(idea: Pick<Idea, "source" | "rawContent" | "normalizedContent">) {
+  if (idea.source === IdeaSource.TELEGRAM || idea.source === IdeaSource.MANUAL) {
+    return idea.rawContent;
+  }
+
+  return idea.normalizedContent ?? idea.rawContent;
 }
 
 function fallbackDraft(source: string, platform: DraftPlatform) {

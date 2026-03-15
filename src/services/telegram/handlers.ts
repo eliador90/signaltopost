@@ -1,7 +1,7 @@
 import { DraftPlatform, FeedbackAction } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
+import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
 import { formatDateTime } from "@/lib/time";
@@ -214,7 +214,7 @@ async function handleIdeaCallback(
     } now.`,
   );
 
-  const source = idea.normalizedContent ?? idea.rawContent;
+  const source = buildDraftSourceFromIdea(idea);
   const drafts = await generateDraftsForPlatforms(platforms, source);
 
   for (const draft of drafts) {

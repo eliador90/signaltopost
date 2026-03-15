@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { generateDraftPair } from "@/services/ai/generateDrafts";
+import { buildDraftSourceFromIdea, generateDraftPair } from "@/services/ai/generateDrafts";
 import { rankIdeas } from "@/services/ideas/rank";
 
 export async function runGenerateDraftsJob() {
@@ -27,7 +27,7 @@ export async function runGenerateDraftsJob() {
       continue;
     }
 
-    const drafts = await generateDraftPair(idea.normalizedContent ?? idea.rawContent);
+    const drafts = await generateDraftPair(buildDraftSourceFromIdea(idea));
     for (const draft of drafts) {
       await prisma.draft.create({
         data: {
