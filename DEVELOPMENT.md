@@ -55,7 +55,7 @@ Purpose:
 - store incoming Telegram messages as ideas
 - ask the user which platform should be drafted
 - send back generated drafts
-- process approve, reject, rewrite, and schedule actions
+- process approve, reject, rewrite, immediate publish, and schedule actions
 
 ### AI generation
 
@@ -91,7 +91,28 @@ Purpose:
 - store scheduled draft jobs from Telegram preset schedule buttons
 
 Current limitation:
-- schedule persistence exists, but automatic publishing is not implemented yet
+- scheduling uses preset slots rather than natural-language parsing
+
+### Publishing pipeline
+
+Files:
+- [src/jobs/publishScheduled.ts](C:\Users\remok\projects\signaltopost\src\jobs\publishScheduled.ts)
+- [src/services/posts/publisher.ts](C:\Users\remok\projects\signaltopost\src\services\posts\publisher.ts)
+- [src/services/posts/x.ts](C:\Users\remok\projects\signaltopost\src\services\posts\x.ts)
+- [src/services/posts/linkedin.ts](C:\Users\remok\projects\signaltopost\src\services\posts\linkedin.ts)
+- [src/services/posts/fallback.ts](C:\Users\remok\projects\signaltopost\src\services\posts\fallback.ts)
+
+Purpose:
+- find due scheduled jobs
+- attempt direct publish for X when credentials exist
+- fall back to manual Telegram delivery when direct posting is unavailable
+- mark jobs as posted, manual-ready, or failed
+
+Current implementation details:
+- X uses a minimal OAuth 1.0a signed request path
+- LinkedIn is manual fallback only
+- Telegram receives the publish result or manual instructions
+- `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
 
 ### GitHub ingestion
 

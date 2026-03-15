@@ -1,6 +1,7 @@
 import type { Draft, User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatDateTime, scheduleForNextLocalSlot } from "@/lib/time";
+import { enqueuePost } from "@/services/posts/queue";
 
 export type SchedulePreset = "tomorrow_0900" | "tomorrow_1400";
 
@@ -35,21 +36,7 @@ export async function schedulePost(
   const config = presetConfig[preset];
   const scheduledFor = scheduleForNextLocalSlot(user.timezone, config);
 
-  const job = await prisma.postJob.upsert({
-    where: { draftId: draft.id },
-    update: {
-      scheduledFor,
-      status: "PENDING",
-      failureReason: null,
-    },
-    create: {
-      userId: user.id,
-      draftId: draft.id,
-      platform: draft.platform,
-      scheduledFor,
-      status: "PENDING",
-    },
-  });
+  const job = await enqueuePost(draft, scheduledFor);
 
   await prisma.draft.update({
     where: { id: draft.id },

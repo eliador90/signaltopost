@@ -1,3 +1,4 @@
+import { publishDraftNow } from "@/services/posts/publisher";
 import type { Draft } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatDateTime, startOfToday } from "@/lib/time";
@@ -64,7 +65,8 @@ export async function handleCommand(command: string, chatId: string) {
       return [
         `Timezone: ${user?.timezone ?? "not set"}`,
         `Telegram chat: ${chatId}`,
-        "LinkedIn direct posting is not implemented yet.",
+        "X posts can publish directly if API credentials are configured.",
+        "LinkedIn uses manual publish fallback for now.",
       ].join("\n");
     }
     case "/schedule":
@@ -90,7 +92,41 @@ export async function handleCommand(command: string, chatId: string) {
           .join("\n\n");
       }
     case "/postnow":
-      return "Direct posting adapters come in Phase 3. For now, SignalToPost focuses on review quality.";
+      {
+        const draft = await prisma.draft.findFirst({
+          where: {
+            user: { telegramChatId: chatId },
+            status: {
+              in: ["APPROVED", "SCHEDULED", "PENDING_REVIEW"],
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+        });
+
+        if (!draft) {
+          return "No draft is ready for immediate publish. Approve or generate a draft first.";
+        }
+
+        const result = await publishDraftNow(draft.id);
+
+        if (result.status === "already_posted") {
+          return "The latest draft was already posted.";
+        }
+
+        if (result.status === "missing") {
+          return "Could not find a draft to publish.";
+        }
+
+        if (result.status === "posted") {
+          return `Posted the latest ${draft.platform} draft.`;
+        }
+
+        if (result.status === "manual_fallback") {
+          return `The latest ${draft.platform} draft was prepared for manual publishing and sent to Telegram.`;
+        }
+
+        return `Publishing failed: ${result.error}`;
+      }
     default:
       return "Unknown command. Use /help to see available commands.";
   }

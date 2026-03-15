@@ -5,6 +5,7 @@ import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
 import { formatDateTime } from "@/lib/time";
+import { publishDraftNow } from "@/services/posts/publisher";
 import { schedulePost, type SchedulePreset } from "@/services/posts/scheduler";
 import { normalizeIdea } from "@/services/ideas/normalize";
 import { answerCallbackQuery, sendTelegramMessage } from "@/services/telegram/bot";
@@ -129,6 +130,14 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       await answerCallbackQuery(callbackQuery.id, "Choose a schedule slot");
       await sendTelegramMessage(chatId, "Choose when to queue this draft.", scheduleKeyboard(draft.id));
       return;
+    case "post_now": {
+      await answerCallbackQuery(callbackQuery.id, "Publishing now");
+      const result = await publishDraftNow(draft.id);
+      if (result.status === "already_posted") {
+        await sendTelegramMessage(chatId, `This ${draft.platform} draft was already posted.`);
+      }
+      return;
+    }
     case "schedule_tomorrow_0900":
     case "schedule_tomorrow_1400": {
       const preset = action.replace("schedule_", "") as SchedulePreset;

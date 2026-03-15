@@ -18,7 +18,10 @@ export function draftKeyboard(draftId: string) {
         { text: "Reject", callback_data: `draft:reject:${draftId}` },
       ],
       [
+        { text: "Post now", callback_data: `draft:post_now:${draftId}` },
         { text: "Schedule", callback_data: `draft:schedule_options:${draftId}` },
+      ],
+      [
         { text: "Rewrite shorter", callback_data: `draft:rewrite_shorter:${draftId}` },
         { text: "Rewrite sharper", callback_data: `draft:rewrite_sharper:${draftId}` },
       ],

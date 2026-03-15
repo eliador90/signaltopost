@@ -17,6 +17,9 @@ Current implementation covers:
 9. GitHub sync that ingests recent commits, merged pull requests, issues, and repo context from configured repositories.
 10. GitHub-to-idea summarization so repository activity can become draft candidates automatically.
 11. Morning digest and draft-generation cron endpoints.
+12. Scheduled publish processing with X direct-post support when credentials are configured.
+13. LinkedIn manual publish fallback delivered through Telegram.
+14. Immediate publish from Telegram via the `Post now` button or `/postnow`.
 
 ## Local setup
 
@@ -34,7 +37,7 @@ Current implementation covers:
 3. Choose `X`, `LinkedIn`, or `Both`.
 4. It generates only the selected platform drafts.
 5. It sends the drafts back with inline review buttons.
-6. Approve, reject, request rewrites, or queue a draft for tomorrow.
+6. Approve, reject, request rewrites, publish immediately, or queue a draft for tomorrow.
 
 ## GitHub flow
 
@@ -56,10 +59,11 @@ Done in Phase 1:
 
 Next up:
 
-1. Refine GitHub signal ranking and event selection.
-2. Improve morning digest formatting and button flows.
-3. Better natural-language scheduling.
-4. Actual publishing adapters in Phase 3.
+1. Better natural-language scheduling.
+2. Harden direct X posting against more API edge cases.
+3. Improve morning digest formatting and button flows.
+4. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
+5. Add stronger post-generation validation for exact constraints like sentence count when needed.
 
 ## Important env vars
 
@@ -89,5 +93,6 @@ GitHub:
 ## Current limitations
 
 1. Scheduling currently uses preset Telegram slots instead of full natural-language parsing.
-2. Direct posting to X and LinkedIn is not implemented yet.
-3. GitHub webhook ingestion is still stubbed; the current implementation uses scheduled polling-style sync.
+2. X direct posting depends on valid X API credentials and has not been live-validated in this repo yet.
+3. LinkedIn currently uses manual publish fallback rather than direct posting.
+4. GitHub webhook ingestion is still stubbed; the current implementation uses scheduled polling-style sync.
