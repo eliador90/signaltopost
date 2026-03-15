@@ -9,6 +9,8 @@ PROJECT_SETUP_CHECKLIST.md
 *.log
 coverage
 dist
+dev.db
 prisma/dev.db
 prisma/dev.db-journal
+tools/
 tsconfig.tsbuildinfo

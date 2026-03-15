@@ -21,10 +21,18 @@ export async function generateText(prompt: string) {
     return null;
   }
 
-  const response = await client.responses.create({
-    model: env.OPENAI_MODEL,
-    input: prompt,
-  });
+  try {
+    const response = await client.responses.create({
+      model: env.OPENAI_MODEL,
+      input: prompt,
+    });
 
-  return response.output_text.trim();
+    return response.output_text.trim();
+  } catch (error) {
+    logger.warn("OpenAI request failed, using fallback generation", {
+      error,
+      model: env.OPENAI_MODEL,
+    });
+    return null;
+  }
 }
