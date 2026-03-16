@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { initLocalScheduler } from "@/lib/localScheduler";
 import { handleTelegramUpdate } from "@/services/telegram/handlers";
 
 export const runtime = "nodejs";
+
+initLocalScheduler();
 
 export async function POST(request: NextRequest) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;

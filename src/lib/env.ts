@@ -22,6 +22,8 @@ const envSchema = z.object({
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
   LINKEDIN_REDIRECT_URI: z.string().optional(),
   LINKEDIN_ACCESS_TOKEN: z.string().optional(),
+  ENABLE_LOCAL_SCHEDULER: z.coerce.boolean().default(false),
+  LOCAL_PUBLISH_POLL_SECONDS: z.coerce.number().int().positive().default(60),
   CRON_SECRET: z.string().optional(),
 });
 
@@ -47,6 +49,8 @@ export const env = envSchema.parse({
   LINKEDIN_CLIENT_SECRET: process.env.LINKEDIN_CLIENT_SECRET,
   LINKEDIN_REDIRECT_URI: process.env.LINKEDIN_REDIRECT_URI,
   LINKEDIN_ACCESS_TOKEN: process.env.LINKEDIN_ACCESS_TOKEN,
+  ENABLE_LOCAL_SCHEDULER: process.env.ENABLE_LOCAL_SCHEDULER,
+  LOCAL_PUBLISH_POLL_SECONDS: process.env.LOCAL_PUBLISH_POLL_SECONDS,
   CRON_SECRET: process.env.CRON_SECRET,
 });
 

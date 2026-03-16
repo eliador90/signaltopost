@@ -1,18 +1,19 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type { Draft } from "@prisma/client";
 import { env } from "@/lib/env";
-import { buildManualPostingInstructions } from "@/services/posts/fallback";
+import { buildManualPostingPayload } from "@/services/posts/fallback";
 
 const xApiUrl = "https://api.twitter.com/2/tweets";
 
 export async function publishToX(draft: Draft) {
   if (!hasXCredentials()) {
+    const fallback = buildManualPostingPayload({
+      content: draft.content,
+      platform: draft.platform,
+    });
     return {
       status: "manual_fallback" as const,
-      instructions: buildManualPostingInstructions({
-        content: draft.content,
-        platform: draft.platform,
-      }),
+      ...fallback,
     };
   }
 

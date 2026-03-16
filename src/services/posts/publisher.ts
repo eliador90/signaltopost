@@ -50,11 +50,12 @@ export async function publishPost(job: JobWithRelations) {
       where: { id: job.id },
       data: {
         status: PostJobStatus.READY_FOR_MANUAL_POST,
-        failureReason: result.instructions,
+        failureReason: result.summary,
       },
     });
 
-    await sendTelegramMessage(job.user.telegramChatId, result.instructions);
+    await sendTelegramMessage(job.user.telegramChatId, result.summary);
+    await sendTelegramMessage(job.user.telegramChatId, result.postBody);
     return { status: "manual_fallback" as const };
   }
 
