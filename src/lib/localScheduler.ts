@@ -10,6 +10,7 @@ declare global {
 export function initLocalScheduler() {
   if (
     !env.ENABLE_LOCAL_SCHEDULER ||
+    env.NODE_ENV !== "development" ||
     process.env.NODE_ENV === "test" ||
     process.env.NEXT_PHASE === "phase-production-build"
   ) {

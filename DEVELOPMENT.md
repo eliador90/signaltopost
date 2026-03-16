@@ -11,6 +11,7 @@ cmd /c npm install
 cmd /c npx prisma generate
 ```
 3. Create a local `.env` from [.env.example](C:\Users\remok\projects\signaltopost\.env.example).
+4. Point `DATABASE_URL` and `DIRECT_DATABASE_URL` at a Postgres database.
 4. Create the local database:
 ```powershell
 cmd /c npx prisma migrate deploy
@@ -90,7 +91,7 @@ Files:
 - [src/lib/db.ts](C:\Users\remok\projects\signaltopost\src\lib\db.ts)
 
 Purpose:
-- persist users, ideas, drafts, scheduled jobs, GitHub events, and feedback events
+- persist users, ideas, drafts, scheduled jobs, GitHub events, and feedback events in Postgres
 
 ### Scheduling persistence
 
@@ -123,6 +124,7 @@ Current implementation details:
 - Telegram receives the publish result or manual instructions
 - `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
 - local development can also run a lightweight in-process publish scheduler when enabled via env vars
+- hosted deployments should use the protected cron routes via GitHub Actions instead of the local scheduler
 
 ### Preset defaults
 
@@ -188,6 +190,10 @@ Files:
 
 Purpose:
 - inspect the internal state without needing direct database access
+
+## Hosted deployment
+
+See [docs/deployment.md](C:\Users\remok\projects\signaltopost\docs\deployment.md) for the production setup on Vercel + Neon + GitHub Actions.
 
 ## Safe workflow
 

@@ -22,15 +22,17 @@ Current implementation covers:
 14. Immediate publish from Telegram via the `Post now` button or `/postnow`.
 15. Pre-generation style and format presets with saved per-platform defaults.
 16. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
+17. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
 
 ## Local setup
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env`.
-3. Run `npx prisma generate`.
-4. Run `npx prisma migrate dev --name init`.
-5. Start the app with `npm run dev`.
-6. Configure your Telegram bot webhook to point to `/api/telegram`.
+3. Point `DATABASE_URL` and `DIRECT_DATABASE_URL` at Postgres.
+4. Run `npx prisma generate`.
+5. Run `npx prisma migrate deploy`.
+6. Start the app with `npm run dev`.
+7. Configure your Telegram bot webhook to point to `/api/telegram`.
 
 ## Telegram flow
 
@@ -69,12 +71,14 @@ Next up:
 3. Improve morning digest formatting and button flows further.
 4. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
 5. Add stronger post-generation validation for exact constraints like sentence count when needed.
+6. Tighten hosted deployment observability and seasonal cron timing for Zurich.
 
 ## Important env vars
 
 Core:
 
 - `DATABASE_URL`
+- `DIRECT_DATABASE_URL`
 - `APP_URL`
 - `TIMEZONE`
 
@@ -101,3 +105,4 @@ GitHub:
 2. X direct posting depends on valid X API credentials and credits.
 3. LinkedIn currently uses manual publish fallback rather than direct posting.
 4. GitHub webhook ingestion is still stubbed; the current implementation uses scheduled polling-style sync.
+5. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.

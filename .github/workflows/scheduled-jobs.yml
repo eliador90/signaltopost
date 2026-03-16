@@ -1,0 +1,73 @@
+name: Scheduled Jobs
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Job to run"
+        required: true
+        default: "publish_posts"
+        type: choice
+        options:
+          - publish_posts
+          - github_sync
+          - generate_drafts
+          - morning_digest
+          - cleanup
+  schedule:
+    - cron: "*/15 * * * *" # publish_posts every 15 minutes
+    - cron: "0 * * * *" # github_sync every hour
+    - cron: "5 * * * *" # generate_drafts every hour, offset after sync
+    - cron: "0 6 * * *" # morning_digest at 06:00 UTC, review seasonally for Europe/Zurich DST
+    - cron: "0 2 * * *" # cleanup at 02:00 UTC, review seasonally for Europe/Zurich DST
+
+jobs:
+  publish_posts:
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'publish_posts') || github.event.schedule == '*/15 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish_posts cron route
+        run: |
+          curl --fail-with-body --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/publish_posts"
+
+  github_sync:
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'github_sync') || github.event.schedule == '0 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger github_sync cron route
+        run: |
+          curl --fail-with-body --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/github_sync"
+
+  generate_drafts:
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'generate_drafts') || github.event.schedule == '5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger generate_drafts cron route
+        run: |
+          curl --fail-with-body --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/generate_drafts"
+
+  morning_digest:
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'morning_digest') || github.event.schedule == '0 6 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger morning_digest cron route
+        run: |
+          curl --fail-with-body --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/morning_digest"
+
+  cleanup:
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'cleanup') || github.event.schedule == '0 2 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cleanup cron route
+        run: |
+          curl --fail-with-body --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/cleanup"
