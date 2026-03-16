@@ -394,14 +394,29 @@ export async function sendDraftForReview(chatId: string, draftId: string) {
     : "Source: manual";
   const preferenceLine = draftPreferenceLine(draft.stylePreset, draft.formatPreset);
   const noteLine = draft.generationNote ? `Note: ${draft.generationNote}` : null;
-
-  const body = [title, sourceLine, preferenceLine, noteLine, "", draft.content].filter(Boolean).join("\n");
+  const body = [
+    `<b>${escapeTelegramHtml(title)}</b>`,
+    "",
+    "<b>Meta</b>",
+    escapeTelegramHtml(sourceLine),
+    escapeTelegramHtml(preferenceLine),
+    noteLine ? escapeTelegramHtml(noteLine) : null,
+    "",
+    "<b>Post</b>",
+    escapeTelegramHtml(draft.content),
+  ]
+    .filter(Boolean)
+    .join("\n");
   const footer =
     draft.scheduledFor && draft.status === "SCHEDULED"
-      ? `\n\nScheduled for ${formatDateTime(draft.scheduledFor, draft.user?.timezone ?? "Europe/Zurich")}`
+      ? `\n\n<b>Schedule</b>\n${escapeTelegramHtml(
+          `Scheduled for ${formatDateTime(draft.scheduledFor, draft.user?.timezone ?? "Europe/Zurich")}`,
+        )}`
       : "";
 
-  await sendTelegramMessage(chatId, `${body}${footer}`, draftKeyboard(draft.id));
+  await sendTelegramMessage(chatId, `${body}${footer}`, draftKeyboard(draft.id), {
+    parseMode: "HTML",
+  });
 }
 
 function isAllowedChat(chatId: string) {
@@ -597,4 +612,11 @@ async function savePendingSelectionAsDefaults(userId: string) {
       defaultLinkedInFormatPreset: formatPreset,
     },
   });
+}
+
+function escapeTelegramHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }

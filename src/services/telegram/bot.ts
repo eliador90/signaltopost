@@ -22,11 +22,17 @@ export async function sendTelegramMessage(
   chatId: string,
   text: string,
   replyMarkup?: Record<string, unknown>,
+  options?: {
+    parseMode?: "HTML" | "MarkdownV2";
+    disableWebPagePreview?: boolean;
+  },
 ) {
   await telegramRequest("sendMessage", {
     chat_id: chatId,
     text,
     reply_markup: replyMarkup,
+    parse_mode: options?.parseMode,
+    disable_web_page_preview: options?.disableWebPagePreview,
   });
 }
 
