@@ -27,13 +27,18 @@ export async function runGenerateDraftsJob() {
       continue;
     }
 
-    const drafts = await generateDraftPair(buildDraftSourceFromIdea(idea));
+    const drafts = await generateDraftPair(buildDraftSourceFromIdea(idea), {
+      user: idea.user,
+    });
     for (const draft of drafts) {
       await prisma.draft.create({
         data: {
           userId: idea.userId,
           platform: draft.platform,
           content: draft.content,
+          stylePreset: draft.stylePreset,
+          formatPreset: draft.formatPreset,
+          generationNote: draft.generationNote,
           sourceIdeaId: idea.id,
           status: "PENDING_REVIEW",
           qualityScore: draft.qualityScore,

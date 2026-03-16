@@ -1,10 +1,27 @@
+import type { ResolvedGenerationPreferences } from "@/services/ai/presets";
 import { postStyleGuide, userContext } from "./shared";
 
-export function buildLinkedInDraftPrompt(input: string) {
+export function buildLinkedInDraftPrompt(input: string, preferences?: ResolvedGenerationPreferences) {
+  const preferenceBlock = preferences
+    ? [
+        `Selected style preset: ${preferences.styleLabel}`,
+        preferences.styleInstruction,
+        `Selected format preset: ${preferences.formatLabel}`,
+        preferences.formatInstruction,
+        preferences.generationNote
+          ? `Custom generation note: ${preferences.generationNote}\nTreat this as an extra steering note while still respecting explicit constraints already written in the source.`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
   return `
 ${userContext}
 
 ${postStyleGuide("linkedin")}
+
+${preferenceBlock}
 
 Generate one LinkedIn post draft from the source below.
 Keep it concise.

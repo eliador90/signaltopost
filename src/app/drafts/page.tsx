@@ -30,6 +30,10 @@ export default async function DraftsPage() {
                   <p className="muted">
                     Source: {draft.sourceIdea?.normalizedContent ?? draft.sourceIdea?.rawContent ?? "n/a"}
                   </p>
+                  <p className="muted">
+                    Style: {draft.stylePreset ?? "default"} | Format: {draft.formatPreset ?? "standard"}
+                  </p>
+                  {draft.generationNote ? <p className="muted">Note: {draft.generationNote}</p> : null}
                 </div>
                 <StatusBadge status={draft.status} />
               </header>

@@ -20,6 +20,7 @@ Current implementation covers:
 12. Scheduled publish processing with X direct-post support when credentials are configured.
 13. LinkedIn manual publish fallback delivered through Telegram.
 14. Immediate publish from Telegram via the `Post now` button or `/postnow`.
+15. Pre-generation style and format presets with saved per-platform defaults.
 
 ## Local setup
 
@@ -35,9 +36,10 @@ Current implementation covers:
 1. Send a normal message to the bot.
 2. SignalToPost stores the idea and asks which platform you want a draft for.
 3. Choose `X`, `LinkedIn`, or `Both`.
-4. It generates only the selected platform drafts.
-5. It sends the drafts back with inline review buttons.
-6. Approve, reject, request rewrites, publish immediately, or queue a draft for tomorrow.
+4. Choose a style preset and a format preset, then optionally add one short note.
+5. It generates only the selected platform drafts.
+6. It sends the drafts back with inline review buttons and the selected preset metadata.
+7. Approve, reject, request rewrites, publish immediately, or queue a draft for tomorrow.
 
 ## GitHub flow
 
@@ -56,6 +58,7 @@ Done in Phase 1:
 3. Telegram review actions.
 4. Simple scheduling persistence.
 5. Minimal admin inspection UI.
+6. Pre-generation style and format control with defaults.
 
 Next up:
 

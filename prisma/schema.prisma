@@ -34,6 +34,12 @@ enum DraftPlatform {
   LINKEDIN
 }
 
+enum PendingPlatformSelection {
+  X
+  LINKEDIN
+  BOTH
+}
+
 enum DraftStatus {
   DRAFT
   PENDING_REVIEW
@@ -63,16 +69,26 @@ enum FeedbackAction {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  name           String?
-  telegramChatId String          @unique
-  timezone       String
-  createdAt      DateTime        @default(now())
-  ideas          Idea[]
-  githubEvents   GithubEvent[]
-  drafts         Draft[]
-  postJobs       PostJob[]
-  feedbackEvents FeedbackEvent[]
+  id                          String                   @id @default(cuid())
+  name                        String?
+  telegramChatId              String                   @unique
+  timezone                    String
+  defaultXStylePreset         String?
+  defaultXFormatPreset        String?
+  defaultLinkedInStylePreset  String?
+  defaultLinkedInFormatPreset String?
+  pendingIdeaId               String?
+  pendingPlatformSelection    PendingPlatformSelection?
+  pendingStylePreset          String?
+  pendingFormatPreset         String?
+  pendingGenerationNote       String?
+  awaitingGenerationNote      Boolean                  @default(false)
+  createdAt                   DateTime                 @default(now())
+  ideas                       Idea[]
+  githubEvents                GithubEvent[]
+  drafts                      Draft[]
+  postJobs                    PostJob[]
+  feedbackEvents              FeedbackEvent[]
 }
 
 model Idea {
@@ -108,6 +124,9 @@ model Draft {
   userId              String
   platform            DraftPlatform
   content             String
+  stylePreset         String?
+  formatPreset        String?
+  generationNote      String?
   sourceIdeaId        String?
   sourceGithubEventId String?
   status              DraftStatus  @default(DRAFT)

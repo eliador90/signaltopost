@@ -1,10 +1,12 @@
 import type { Idea } from "@prisma/client";
 
-export function rankIdeas(ideas: Idea[]) {
+type RankableIdea = Pick<Idea, "rawContent" | "normalizedContent">;
+
+export function rankIdeas<T extends RankableIdea>(ideas: T[]) {
   return [...ideas].sort((a, b) => scoreIdea(b) - scoreIdea(a));
 }
 
-function scoreIdea(idea: Idea) {
+function scoreIdea(idea: RankableIdea) {
   const content = (idea.normalizedContent ?? idea.rawContent).toLowerCase();
   let score = 0;
 

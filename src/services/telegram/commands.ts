@@ -12,6 +12,7 @@ export async function handleCommand(command: string, chatId: string) {
         "Commands:",
         "/start",
         "/help",
+        "/cancel",
         "/idea",
         "/drafts",
         "/schedule",
@@ -19,6 +20,29 @@ export async function handleCommand(command: string, chatId: string) {
         "/settings",
         "/postnow",
       ].join("\n");
+    case "/cancel": {
+      const user = await prisma.user.findUnique({
+        where: { telegramChatId: chatId },
+      });
+
+      if (!user?.pendingIdeaId && !user?.awaitingGenerationNote) {
+        return "No pending generation flow to cancel.";
+      }
+
+      await prisma.user.update({
+        where: { telegramChatId: chatId },
+        data: {
+          pendingIdeaId: null,
+          pendingPlatformSelection: null,
+          pendingStylePreset: null,
+          pendingFormatPreset: null,
+          pendingGenerationNote: null,
+          awaitingGenerationNote: false,
+        },
+      });
+
+      return "Cancelled the pending generation flow.";
+    }
     case "/idea":
       return "Send a normal message with your thought, build update, or lesson learned.";
     case "/drafts": {

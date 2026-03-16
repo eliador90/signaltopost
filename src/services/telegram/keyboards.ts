@@ -1,11 +1,48 @@
+import { formatPresets, getFormatPreset, getStylePreset, stylePresets } from "@/services/ai/presets";
+
 export function ideaPlatformKeyboard(ideaId: string) {
   return {
     inline_keyboard: [
       [
-        { text: "Draft for X", callback_data: `idea:draft_x:${ideaId}` },
-        { text: "Draft for LinkedIn", callback_data: `idea:draft_linkedin:${ideaId}` },
+        { text: "Draft for X", callback_data: `idea:platform_x:${ideaId}` },
+        { text: "Draft for LinkedIn", callback_data: `idea:platform_linkedin:${ideaId}` },
       ],
-      [{ text: "Draft for Both", callback_data: `idea:draft_both:${ideaId}` }],
+      [{ text: "Draft for Both", callback_data: `idea:platform_both:${ideaId}` }],
+    ],
+  };
+}
+
+export function stylePresetKeyboard(ideaId: string) {
+  return {
+    inline_keyboard: [
+      ...stylePresets.map((preset) => [
+        { text: `${preset.label} - ${preset.description}`, callback_data: `idea:style_${preset.id}:${ideaId}` },
+      ]),
+      [{ text: "Back to platform", callback_data: `idea:back_to_platform:${ideaId}` }],
+    ],
+  };
+}
+
+export function formatPresetKeyboard(ideaId: string) {
+  return {
+    inline_keyboard: [
+      ...formatPresets.map((preset) => [
+        { text: `${preset.label} - ${preset.description}`, callback_data: `idea:format_${preset.id}:${ideaId}` },
+      ]),
+      [{ text: "Back to style", callback_data: `idea:back_to_style:${ideaId}` }],
+    ],
+  };
+}
+
+export function generationSummaryKeyboard(ideaId: string) {
+  return {
+    inline_keyboard: [
+      [{ text: "Generate now", callback_data: `idea:generate:${ideaId}` }],
+      [
+        { text: "Add note", callback_data: `idea:add_note:${ideaId}` },
+        { text: "Use as default", callback_data: `idea:use_defaults:${ideaId}` },
+      ],
+      [{ text: "Back to format", callback_data: `idea:back_to_format:${ideaId}` }],
     ],
   };
 }
@@ -42,4 +79,10 @@ export function scheduleKeyboard(draftId: string) {
       [{ text: "Back to actions", callback_data: `draft:show_actions:${draftId}` }],
     ],
   };
+}
+
+export function draftPreferenceLine(stylePreset?: string | null, formatPreset?: string | null) {
+  const styleLabel = getStylePreset(stylePreset).label;
+  const formatLabel = getFormatPreset(formatPreset).label;
+  return `Style: ${styleLabel} | Format: ${formatLabel}`;
 }

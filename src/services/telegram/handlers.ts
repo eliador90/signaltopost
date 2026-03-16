@@ -1,7 +1,8 @@
-import { DraftPlatform, FeedbackAction } from "@prisma/client";
+import { DraftPlatform, FeedbackAction, PendingPlatformSelection } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
+import { getFormatPreset, getStylePreset } from "@/services/ai/presets";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
 import { formatDateTime } from "@/lib/time";
@@ -10,7 +11,15 @@ import { schedulePost, type SchedulePreset } from "@/services/posts/scheduler";
 import { normalizeIdea } from "@/services/ideas/normalize";
 import { answerCallbackQuery, sendTelegramMessage } from "@/services/telegram/bot";
 import { handleCommand } from "@/services/telegram/commands";
-import { draftKeyboard, ideaPlatformKeyboard, scheduleKeyboard } from "@/services/telegram/keyboards";
+import {
+  draftKeyboard,
+  draftPreferenceLine,
+  formatPresetKeyboard,
+  generationSummaryKeyboard,
+  ideaPlatformKeyboard,
+  scheduleKeyboard,
+  stylePresetKeyboard,
+} from "@/services/telegram/keyboards";
 import { isCommand, parseCommand } from "@/services/telegram/parser";
 import type { TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "@/types/telegram";
 
@@ -34,13 +43,6 @@ async function handleIncomingMessage(message: TelegramMessage) {
     return;
   }
 
-  if (isCommand(text)) {
-    const parsed = parseCommand(text);
-    const response = await handleCommand(parsed.command, chatId);
-    await sendTelegramMessage(chatId, response);
-    return;
-  }
-
   const user = await prisma.user.upsert({
     where: { telegramChatId: chatId },
     create: {
@@ -53,11 +55,47 @@ async function handleIncomingMessage(message: TelegramMessage) {
     },
   });
 
+  if (isCommand(text)) {
+    const parsed = parseCommand(text);
+    const response = await handleCommand(parsed.command, chatId);
+    await sendTelegramMessage(chatId, response);
+    return;
+  }
+
+  if (user.awaitingGenerationNote && user.pendingIdeaId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        pendingGenerationNote: text,
+        awaitingGenerationNote: false,
+      },
+    });
+
+    const refreshedUser = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!refreshedUser) return;
+
+    await sendTelegramMessage(chatId, "Note saved. Generating your draft now.");
+    await generatePendingIdeaDrafts(refreshedUser, chatId);
+    return;
+  }
+
   const normalizedContent = await normalizeIdea(text);
   const idea = await createIdea({
     user,
     rawContent: text,
     normalizedContent,
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      pendingIdeaId: idea.id,
+      pendingPlatformSelection: null,
+      pendingStylePreset: null,
+      pendingFormatPreset: null,
+      pendingGenerationNote: null,
+      awaitingGenerationNote: false,
+    },
   });
 
   await sendTelegramMessage(
@@ -153,7 +191,7 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       await answerCallbackQuery(callbackQuery.id, "Draft scheduled");
       await sendTelegramMessage(
         chatId,
-        `Scheduled ${draft.platform} draft for ${scheduled.label}. Publishing is still manual / Phase 3.`,
+        `Scheduled ${draft.platform} draft for ${scheduled.label}. It will publish when due or fall back to manual delivery if direct posting is unavailable.`,
       );
       return;
     }
@@ -200,54 +238,106 @@ async function handleIdeaCallback(
     return;
   }
 
-  const existingDrafts = await prisma.draft.count({
-    where: { sourceIdeaId: idea.id },
-  });
+  const user = await prisma.user.findUnique({ where: { id: idea.userId } });
+  if (!user) {
+    await answerCallbackQuery(callbackQuery.id, "User not found.");
+    return;
+  }
 
+  const existingDrafts = await prisma.draft.count({ where: { sourceIdeaId: idea.id } });
   if (existingDrafts > 0) {
     await answerCallbackQuery(callbackQuery.id, "Drafts already created for this idea.");
     return;
   }
 
-  const platforms = getPlatformsForAction(action);
-  if (!platforms) {
-    await answerCallbackQuery(callbackQuery.id, "Unknown platform selection.");
-    return;
+  switch (action) {
+    case "platform_x":
+    case "platform_linkedin":
+    case "platform_both": {
+      const platformSelection = getPendingPlatformSelection(action);
+      if (!platformSelection) {
+        await answerCallbackQuery(callbackQuery.id, "Unknown platform selection.");
+        return;
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          pendingIdeaId: idea.id,
+          pendingPlatformSelection: platformSelection,
+          pendingStylePreset: null,
+          pendingFormatPreset: null,
+          pendingGenerationNote: null,
+          awaitingGenerationNote: false,
+        },
+      });
+      await answerCallbackQuery(callbackQuery.id, "Platform saved");
+      await sendTelegramMessage(chatId, "Choose a style preset.", stylePresetKeyboard(idea.id));
+      return;
+    }
+    case "back_to_platform":
+      await answerCallbackQuery(callbackQuery.id, "Choose a platform");
+      await sendTelegramMessage(chatId, "Which platform do you want a draft for?", ideaPlatformKeyboard(idea.id));
+      return;
+    case "back_to_style":
+      await answerCallbackQuery(callbackQuery.id, "Choose a style");
+      await sendTelegramMessage(chatId, "Choose a style preset.", stylePresetKeyboard(idea.id));
+      return;
+    case "back_to_format":
+      await answerCallbackQuery(callbackQuery.id, "Choose a format");
+      await sendTelegramMessage(chatId, "Choose a format preset.", formatPresetKeyboard(idea.id));
+      return;
+    case "add_note":
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          awaitingGenerationNote: true,
+        },
+      });
+      await answerCallbackQuery(callbackQuery.id, "Waiting for your note");
+      await sendTelegramMessage(
+        chatId,
+        "Send one short note for this generation, for example 'more contrarian' or 'no bullets'. Use /cancel to stop.",
+      );
+      return;
+    case "use_defaults":
+      await savePendingSelectionAsDefaults(user.id);
+      await answerCallbackQuery(callbackQuery.id, "Defaults saved");
+      await sendTelegramMessage(chatId, "Saved these style and format defaults for future drafts.");
+      return;
+    case "generate":
+      await answerCallbackQuery(callbackQuery.id, "Generating drafts");
+      await generatePendingIdeaDrafts(user, chatId);
+      return;
+    default:
+      if (action.startsWith("style_")) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { pendingStylePreset: action.replace("style_", "") },
+        });
+        await answerCallbackQuery(callbackQuery.id, "Style saved");
+        await sendTelegramMessage(chatId, "Choose a format preset.", formatPresetKeyboard(idea.id));
+        return;
+      }
+
+      if (action.startsWith("format_")) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { pendingFormatPreset: action.replace("format_", "") },
+        });
+        await answerCallbackQuery(callbackQuery.id, "Format saved");
+        const refreshedUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (!refreshedUser) return;
+        await sendTelegramMessage(
+          chatId,
+          buildPendingSummary(refreshedUser),
+          generationSummaryKeyboard(idea.id),
+        );
+        return;
+      }
+
+      await answerCallbackQuery(callbackQuery.id, "Unknown selection.");
   }
-
-  await answerCallbackQuery(callbackQuery.id, "Generating drafts");
-  await sendTelegramMessage(
-    chatId,
-    `Generating ${platforms.length === 2 ? "X and LinkedIn" : platforms[0]} draft${
-      platforms.length === 1 ? "" : "s"
-    } now.`,
-  );
-
-  const source = buildDraftSourceFromIdea(idea);
-  const drafts = await generateDraftsForPlatforms(platforms, source);
-
-  for (const draft of drafts) {
-    const storedDraft = await prisma.draft.create({
-      data: {
-        userId: idea.userId,
-        platform: draft.platform,
-        content: draft.content,
-        sourceIdeaId: idea.id,
-        status: "PENDING_REVIEW",
-        qualityScore: draft.qualityScore,
-      },
-    });
-
-    await sendDraftForReview(chatId, storedDraft.id);
-  }
-
-  await prisma.idea.update({
-    where: { id: idea.id },
-    data: {
-      status: "PROCESSED",
-      processedAt: new Date(),
-    },
-  });
 }
 
 async function rewriteAndResendDraft(
@@ -302,8 +392,10 @@ export async function sendDraftForReview(chatId: string, draftId: string) {
   const sourceLine = draft.sourceIdea
     ? `Source: ${draft.sourceIdea.normalizedContent ?? draft.sourceIdea.rawContent}`
     : "Source: manual";
+  const preferenceLine = draftPreferenceLine(draft.stylePreset, draft.formatPreset);
+  const noteLine = draft.generationNote ? `Note: ${draft.generationNote}` : null;
 
-  const body = [title, sourceLine, "", draft.content].join("\n");
+  const body = [title, sourceLine, preferenceLine, noteLine, "", draft.content].filter(Boolean).join("\n");
   const footer =
     draft.scheduledFor && draft.status === "SCHEDULED"
       ? `\n\nScheduled for ${formatDateTime(draft.scheduledFor, draft.user?.timezone ?? "Europe/Zurich")}`
@@ -317,15 +409,192 @@ function isAllowedChat(chatId: string) {
   return !allowedChatId || allowedChatId === chatId;
 }
 
-function getPlatformsForAction(action: string) {
+function getPendingPlatformSelection(action: string) {
   switch (action) {
-    case "draft_x":
-      return [DraftPlatform.X];
-    case "draft_linkedin":
-      return [DraftPlatform.LINKEDIN];
-    case "draft_both":
-      return [DraftPlatform.X, DraftPlatform.LINKEDIN];
+    case "platform_x":
+      return PendingPlatformSelection.X;
+    case "platform_linkedin":
+      return PendingPlatformSelection.LINKEDIN;
+    case "platform_both":
+      return PendingPlatformSelection.BOTH;
     default:
       return null;
   }
+}
+
+async function generatePendingIdeaDrafts(
+  user: {
+    id: string;
+    pendingIdeaId: string | null;
+    pendingPlatformSelection: PendingPlatformSelection | null;
+    pendingStylePreset: string | null;
+    pendingFormatPreset: string | null;
+    pendingGenerationNote: string | null;
+    defaultXStylePreset?: string | null;
+    defaultXFormatPreset?: string | null;
+    defaultLinkedInStylePreset?: string | null;
+    defaultLinkedInFormatPreset?: string | null;
+  },
+  chatId: string,
+) {
+  if (!user.pendingIdeaId || !user.pendingPlatformSelection) {
+    await sendTelegramMessage(chatId, "No pending idea is ready to generate.");
+    return;
+  }
+
+  const idea = await prisma.idea.findUnique({
+    where: { id: user.pendingIdeaId },
+    include: { user: true },
+  });
+
+  if (!idea || idea.user.telegramChatId !== chatId) {
+    await sendTelegramMessage(chatId, "The pending idea could not be found.");
+    return;
+  }
+
+  const existingDrafts = await prisma.draft.count({ where: { sourceIdeaId: idea.id } });
+  if (existingDrafts > 0) {
+    await clearPendingSelection(user.id);
+    await sendTelegramMessage(chatId, "Drafts already exist for this idea.");
+    return;
+  }
+
+  const platforms = getPlatformsForPendingSelection(user.pendingPlatformSelection);
+  await sendTelegramMessage(
+    chatId,
+    `Generating ${platforms.length === 2 ? "X and LinkedIn" : getPlatformLabel(platforms[0])} draft${
+      platforms.length === 1 ? "" : "s"
+    } now.`,
+  );
+
+  const source = buildDraftSourceFromIdea(idea);
+  const drafts = await generateDraftsForPlatforms(platforms, source, {
+    user: idea.user,
+    preferences: {
+      stylePresetId: user.pendingStylePreset,
+      formatPresetId: user.pendingFormatPreset,
+      generationNote: user.pendingGenerationNote,
+    },
+  });
+
+  for (const draft of drafts) {
+    const storedDraft = await prisma.draft.create({
+      data: {
+        userId: idea.userId,
+        platform: draft.platform,
+        content: draft.content,
+        sourceIdeaId: idea.id,
+        status: "PENDING_REVIEW",
+        qualityScore: draft.qualityScore,
+        stylePreset: draft.stylePreset,
+        formatPreset: draft.formatPreset,
+        generationNote: draft.generationNote,
+      },
+    });
+
+    await sendDraftForReview(chatId, storedDraft.id);
+  }
+
+  await prisma.idea.update({
+    where: { id: idea.id },
+    data: {
+      status: "PROCESSED",
+      processedAt: new Date(),
+    },
+  });
+
+  await clearPendingSelection(user.id);
+}
+
+function getPlatformsForPendingSelection(selection: PendingPlatformSelection) {
+  switch (selection) {
+    case PendingPlatformSelection.X:
+      return [DraftPlatform.X];
+    case PendingPlatformSelection.LINKEDIN:
+      return [DraftPlatform.LINKEDIN];
+    case PendingPlatformSelection.BOTH:
+      return [DraftPlatform.X, DraftPlatform.LINKEDIN];
+  }
+}
+
+function buildPendingSummary(user: {
+  pendingPlatformSelection: PendingPlatformSelection | null;
+  pendingStylePreset: string | null;
+  pendingFormatPreset: string | null;
+  pendingGenerationNote: string | null;
+}) {
+  const platformLabel =
+    user.pendingPlatformSelection === PendingPlatformSelection.BOTH
+      ? "X and LinkedIn"
+      : user.pendingPlatformSelection === PendingPlatformSelection.X
+        ? "X"
+        : "LinkedIn";
+
+  return [
+    "Ready to generate.",
+    `Platform: ${platformLabel}`,
+    `Style: ${getStylePreset(user.pendingStylePreset).label}`,
+    `Format: ${getFormatPreset(user.pendingFormatPreset).label}`,
+    user.pendingGenerationNote ? `Note: ${user.pendingGenerationNote}` : "Note: none",
+  ].join("\n");
+}
+
+function getPlatformLabel(platform: DraftPlatform) {
+  return platform === DraftPlatform.X ? "X" : "LinkedIn";
+}
+
+async function clearPendingSelection(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      pendingIdeaId: null,
+      pendingPlatformSelection: null,
+      pendingStylePreset: null,
+      pendingFormatPreset: null,
+      pendingGenerationNote: null,
+      awaitingGenerationNote: false,
+    },
+  });
+}
+
+async function savePendingSelectionAsDefaults(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.pendingStylePreset || !user.pendingFormatPreset || !user.pendingPlatformSelection) {
+    return;
+  }
+
+  const stylePreset = user.pendingStylePreset;
+  const formatPreset = user.pendingFormatPreset;
+
+  if (user.pendingPlatformSelection === PendingPlatformSelection.BOTH) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        defaultXStylePreset: stylePreset,
+        defaultXFormatPreset: formatPreset,
+        defaultLinkedInStylePreset: stylePreset,
+        defaultLinkedInFormatPreset: formatPreset,
+      },
+    });
+    return;
+  }
+
+  if (user.pendingPlatformSelection === PendingPlatformSelection.X) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        defaultXStylePreset: stylePreset,
+        defaultXFormatPreset: formatPreset,
+      },
+    });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      defaultLinkedInStylePreset: stylePreset,
+      defaultLinkedInFormatPreset: formatPreset,
+    },
+  });
 }

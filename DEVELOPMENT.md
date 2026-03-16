@@ -54,6 +54,8 @@ Files:
 Purpose:
 - store incoming Telegram messages as ideas
 - ask the user which platform should be drafted
+- collect pre-generation style and format preset selections
+- optionally capture one short custom generation note
 - send back generated drafts
 - process approve, reject, rewrite, immediate publish, and schedule actions
 
@@ -70,6 +72,7 @@ Purpose:
 - generate X and LinkedIn drafts
 - rewrite drafts on demand
 - respect explicit user instructions in the source text, such as requested length or sentence count
+- apply selected style and format presets plus saved platform defaults before generation
 
 Behavior:
 - if the OpenAI API is unavailable or quota is exhausted, the app falls back to local template-based generation instead of failing the webhook
@@ -113,6 +116,17 @@ Current implementation details:
 - LinkedIn is manual fallback only
 - Telegram receives the publish result or manual instructions
 - `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
+
+### Preset defaults
+
+Files:
+- [src/services/ai/presets.ts](C:\Users\remok\projects\signaltopost\src\services\ai\presets.ts)
+- [src/app/settings/page.tsx](C:\Users\remok\projects\signaltopost\src\app\settings\page.tsx)
+
+Purpose:
+- define the code-backed style and format preset catalog
+- let the user save default preset combinations for X and LinkedIn
+- provide a lighter-weight control layer before generation so fewer rewrite rounds are needed
 
 ### GitHub ingestion
 
