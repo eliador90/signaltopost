@@ -15,8 +15,10 @@ export default async function IdeasPage({ searchParams }: { searchParams?: Searc
   const params = searchParams ? await searchParams : undefined;
   const message = firstParam(params?.message);
   const tone = firstParam(params?.tone);
+  const showProcessed = firstParam(params?.processed) === "1";
+  const showArchived = firstParam(params?.archived) === "1";
 
-  const ideas: Array<
+  const fetchedIdeas: Array<
     Idea & {
       user: User;
     }
@@ -25,14 +27,29 @@ export default async function IdeasPage({ searchParams }: { searchParams?: Searc
     take: 50,
     include: { user: true },
   });
+  const ideas = fetchedIdeas
+    .filter((idea) => (showProcessed ? true : idea.status !== "PROCESSED"))
+    .filter((idea) => (showArchived ? true : idea.status !== "ARCHIVED"))
+    .sort((left, right) => compareIdeaStatus(left.status, right.status) || right.createdAt.getTime() - left.createdAt.getTime());
 
   return (
     <section className="card">
       <h2>Ideas</h2>
       {message ? <div className={`notice ${tone === "error" ? "error" : "success"}`}>{message}</div> : null}
+      <form className="action-row" method="get">
+        <label className="chip">
+          <input defaultChecked={showProcessed} name="processed" type="checkbox" value="1" /> Show processed
+        </label>
+        <label className="chip">
+          <input defaultChecked={showArchived} name="archived" type="checkbox" value="1" /> Show archived
+        </label>
+        <button className="chip" type="submit">
+          Apply
+        </button>
+      </form>
       <div className="list">
         {ideas.length === 0 ? (
-          <div className="empty">No ideas stored yet.</div>
+          <div className="empty">No ideas match the current filters.</div>
         ) : (
           ideas.map((idea) => (
             <article className="item" key={idea.id}>
@@ -87,4 +104,21 @@ export default async function IdeasPage({ searchParams }: { searchParams?: Searc
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function compareIdeaStatus(left: Idea["status"], right: Idea["status"]) {
+  return getIdeaStatusRank(left) - getIdeaStatusRank(right);
+}
+
+function getIdeaStatusRank(status: Idea["status"]) {
+  switch (status) {
+    case "NEW":
+      return 0;
+    case "PROCESSED":
+      return 1;
+    case "ARCHIVED":
+      return 2;
+    default:
+      return 3;
+  }
 }
