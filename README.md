@@ -21,6 +21,7 @@ Current implementation covers:
 13. LinkedIn manual publish fallback delivered through Telegram.
 14. Immediate publish from Telegram via the `Post now` button or `/postnow`.
 15. Pre-generation style and format presets with saved per-platform defaults.
+16. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
 
 ## Local setup
 
@@ -39,7 +40,7 @@ Current implementation covers:
 4. Choose a style preset and a format preset, then optionally add one short note.
 5. It generates only the selected platform drafts.
 6. It sends the drafts back with inline review buttons and the selected preset metadata.
-7. Approve, reject, request rewrites, publish immediately, or queue a draft for tomorrow.
+7. Approve, reject, use richer rewrite controls, publish immediately, or queue a draft for tomorrow.
 
 ## GitHub flow
 
@@ -59,12 +60,13 @@ Done in Phase 1:
 4. Simple scheduling persistence.
 5. Minimal admin inspection UI.
 6. Pre-generation style and format control with defaults.
+7. Publishing validated with live X posting and LinkedIn fallback.
 
 Next up:
 
 1. Better natural-language scheduling.
 2. Harden direct X posting against more API edge cases.
-3. Improve morning digest formatting and button flows.
+3. Improve morning digest formatting and button flows further.
 4. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
 5. Add stronger post-generation validation for exact constraints like sentence count when needed.
 
@@ -96,6 +98,6 @@ GitHub:
 ## Current limitations
 
 1. Scheduling currently uses preset Telegram slots instead of full natural-language parsing.
-2. X direct posting depends on valid X API credentials and has not been live-validated in this repo yet.
+2. X direct posting depends on valid X API credentials and credits.
 3. LinkedIn currently uses manual publish fallback rather than direct posting.
 4. GitHub webhook ingestion is still stubbed; the current implementation uses scheduled polling-style sync.

@@ -217,6 +217,14 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       );
       await answerCallbackQuery(callbackQuery.id, "Rewritten more like you");
       return;
+    case "rewrite_calmer":
+      await rewriteAndResendDraft(draft.id, draft.userId, chatId, "calmer", FeedbackAction.EDITED);
+      await answerCallbackQuery(callbackQuery.id, "Rewritten calmer");
+      return;
+    case "rewrite_hook":
+      await rewriteAndResendDraft(draft.id, draft.userId, chatId, "stronger hook", FeedbackAction.EDITED);
+      await answerCallbackQuery(callbackQuery.id, "Rewritten with stronger hook");
+      return;
     default:
       await answerCallbackQuery(callbackQuery.id, "Unknown action.");
   }
@@ -350,7 +358,7 @@ async function rewriteAndResendDraft(
   const draft = await prisma.draft.findUnique({ where: { id: draftId } });
   if (!draft) return;
 
-  const rewritten = await rewriteDraft(draft.content, direction);
+  const rewritten = await rewriteDraft(draft, direction);
 
   await prisma.draft.update({
     where: { id: draft.id },

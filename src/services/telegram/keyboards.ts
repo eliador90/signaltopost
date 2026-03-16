@@ -63,6 +63,10 @@ export function draftKeyboard(draftId: string) {
         { text: "Rewrite sharper", callback_data: `draft:rewrite_sharper:${draftId}` },
       ],
       [
+        { text: "Rewrite calmer", callback_data: `draft:rewrite_calmer:${draftId}` },
+        { text: "Rewrite with hook", callback_data: `draft:rewrite_hook:${draftId}` },
+      ],
+      [
         { text: "Rewrite more like me", callback_data: `draft:rewrite_personal:${draftId}` },
       ],
     ],

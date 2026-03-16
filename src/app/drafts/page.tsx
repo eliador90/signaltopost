@@ -34,6 +34,7 @@ export default async function DraftsPage() {
                     Style: {draft.stylePreset ?? "default"} | Format: {draft.formatPreset ?? "standard"}
                   </p>
                   {draft.generationNote ? <p className="muted">Note: {draft.generationNote}</p> : null}
+                  <p className="muted">Quality score: {draft.qualityScore?.toFixed(2) ?? "n/a"}</p>
                 </div>
                 <StatusBadge status={draft.status} />
               </header>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { isNearDuplicateDraft } from "@/services/ai/dedup";
 import { buildDraftSourceFromIdea, generateDraftPair } from "@/services/ai/generateDrafts";
 import { rankIdeas } from "@/services/ideas/rank";
 
@@ -13,6 +14,20 @@ export async function runGenerateDraftsJob() {
   const ranked = rankIdeas(ideas);
 
   for (const idea of ranked) {
+    const recentDrafts = await prisma.draft.findMany({
+      where: {
+        userId: idea.userId,
+        platform: { in: ["X", "LINKEDIN"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        content: true,
+        platform: true,
+      },
+    });
+
     const existingDrafts = await prisma.draft.count({
       where: {
         sourceIdeaId: idea.id,
@@ -31,6 +46,11 @@ export async function runGenerateDraftsJob() {
       user: idea.user,
     });
     for (const draft of drafts) {
+      const platformDrafts = recentDrafts.filter((existing) => existing.platform === draft.platform);
+      if (isNearDuplicateDraft(draft.content, platformDrafts)) {
+        continue;
+      }
+
       await prisma.draft.create({
         data: {
           userId: idea.userId,

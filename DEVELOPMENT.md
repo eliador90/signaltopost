@@ -23,6 +23,11 @@ cmd /c npx prisma db push
 ```powershell
 cmd /c npm run dev
 ```
+If you want scheduled drafts to publish automatically in local development, set this in `.env` first:
+```env
+ENABLE_LOCAL_SCHEDULER=true
+LOCAL_PUBLISH_POLL_SECONDS=60
+```
 6. For Telegram webhook testing, expose the app publicly with a tunnel such as ngrok:
 ```powershell
 cd C:\Users\remok\projects\signaltopost\tools
@@ -73,6 +78,7 @@ Purpose:
 - rewrite drafts on demand
 - respect explicit user instructions in the source text, such as requested length or sentence count
 - apply selected style and format presets plus saved platform defaults before generation
+- score drafts and avoid obvious low-signal or duplicate output
 
 Behavior:
 - if the OpenAI API is unavailable or quota is exhausted, the app falls back to local template-based generation instead of failing the webhook
@@ -116,6 +122,7 @@ Current implementation details:
 - LinkedIn is manual fallback only
 - Telegram receives the publish result or manual instructions
 - `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
+- local development can also run a lightweight in-process publish scheduler when enabled via env vars
 
 ### Preset defaults
 
@@ -127,6 +134,18 @@ Purpose:
 - define the code-backed style and format preset catalog
 - let the user save default preset combinations for X and LinkedIn
 - provide a lighter-weight control layer before generation so fewer rewrite rounds are needed
+
+### Quality and cleanup
+
+Files:
+- [src/jobs/cleanup.ts](C:\Users\remok\projects\signaltopost\src\jobs\cleanup.ts)
+- [src/services/ai/scoreDraft.ts](C:\Users\remok\projects\signaltopost\src\services\ai\scoreDraft.ts)
+- [src/services/ai/dedup.ts](C:\Users\remok\projects\signaltopost\src\services\ai\dedup.ts)
+
+Purpose:
+- score drafts more realistically
+- suppress near-duplicate drafts in generation and digest output
+- archive stale new ideas and reject obvious duplicate pending drafts during cleanup
 
 ### GitHub ingestion
 

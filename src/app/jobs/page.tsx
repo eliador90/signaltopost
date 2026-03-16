@@ -33,7 +33,7 @@ export default async function JobsPage() {
                 <StatusBadge status={job.status} />
               </header>
               <p className="muted">Scheduled for {formatDateTime(job.scheduledFor)}</p>
-              {job.failureReason ? <p className="muted">Failure: {job.failureReason}</p> : null}
+              {job.failureReason ? <p className="muted">Detail: {job.failureReason}</p> : null}
             </article>
           ))}
         </div>

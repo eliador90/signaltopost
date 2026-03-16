@@ -1,5 +1,6 @@
 import type { Draft } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { isNearDuplicateDraft } from "@/services/ai/dedup";
 import { runGenerateDraftsJob } from "@/jobs/generateDrafts";
 import { runGithubSyncJob } from "@/jobs/syncGithub";
 import { sendTelegramMessage } from "@/services/telegram/bot";
@@ -21,8 +22,11 @@ export async function runMorningDigestJob() {
     orderBy: [{ qualityScore: "desc" }, { createdAt: "desc" }],
     take: 3,
   });
+  const uniqueDrafts = drafts.filter(
+    (draft, index) => !isNearDuplicateDraft(draft.content, drafts.slice(0, index), 0.78),
+  );
 
-  if (drafts.length === 0) {
+  if (uniqueDrafts.length === 0) {
     return { sent: false, reason: "no_pending_drafts" };
   }
 
@@ -42,11 +46,11 @@ export async function runMorningDigestJob() {
     ...githubSignals.map((idea, index) => `${index + 1}. ${idea.normalizedContent ?? idea.rawContent}`),
     "",
     "Top drafts to review today:",
-    ...drafts.map((draft, index) => `${index + 1}. [${draft.platform}] ${draft.content}`),
+    ...uniqueDrafts.map((draft, index) => `${index + 1}. [${draft.platform}] ${draft.content}`),
     "",
     `Sync summary: ${githubSync.synced} GitHub events, ${generated.processedIdeas} ideas turned into drafts.`,
   ].join("\n");
 
   await sendTelegramMessage(user.telegramChatId, digest);
-  return { sent: true, count: drafts.length, githubSync, generated };
+  return { sent: true, count: uniqueDrafts.length, githubSync, generated };
 }

@@ -28,7 +28,7 @@ export default async function IdeasPage() {
                 <div>
                   <h3>{idea.normalizedContent ?? idea.rawContent}</h3>
                   <p className="muted">
-                    {idea.source} · {idea.user.name ?? idea.user.telegramChatId}
+                    {idea.source} | {idea.user.name ?? idea.user.telegramChatId}
                   </p>
                 </div>
                 <StatusBadge status={idea.status} />
