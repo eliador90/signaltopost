@@ -6,6 +6,7 @@ ${userContext}
 
 Rewrite the following draft.
 Direction: ${direction}
+Avoid em dashes and avoid leaning on hyphens for style unless they are truly necessary.
 Return only the rewritten draft.
 
 Draft:

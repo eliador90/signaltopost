@@ -14,6 +14,7 @@ Voice rules:
 - Thoughtful
 - Honest, not hypey
 - Useful, not generic
+- Prefer plain punctuation over stylistic dashes
 
 Avoid:
 - Corporate buzzwords
@@ -21,6 +22,7 @@ Avoid:
 - Founder cringe
 - Robotic AI phrasing
 - Excessive self-congratulation
+- Em dashes and hyphen-heavy phrasing unless truly necessary
 `.trim();
 
 export function postStyleGuide(platform: "x" | "linkedin") {
@@ -32,6 +34,7 @@ Write for X:
 - Easy to scan
 - Focus on one sharp point if possible
 - Prefer concrete progress and useful lessons
+- Avoid em dashes and avoid using hyphens as a stylistic crutch
 `.trim();
   }
 
@@ -42,5 +45,6 @@ Write for LinkedIn:
 - Builds credibility for fractional CFO work
 - Can include a soft CTA if natural
 - Prefer practical framing over personal hype
+- Avoid em dashes and avoid using hyphens as a stylistic crutch
 `.trim();
 }
