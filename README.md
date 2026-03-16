@@ -66,6 +66,10 @@ Current implementation covers:
 6. Draft generation can turn those ideas into pending review drafts.
 7. The hourly `github_sync` cron remains available as a manual recovery path, not the primary ingestion path.
 
+Important reminder:
+
+- Every new GitHub repository you want included in SignalToPost idea generation must be added to `GITHUB_REPOS` and must also get its own webhook pointing to `/api/github/webhook`.
+
 ## Progress note
 
 Done in Phase 1:
