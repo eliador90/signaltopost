@@ -219,6 +219,59 @@ select {
   color: var(--muted);
 }
 
+.notice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.notice.success {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.notice.error {
+  background: #f8e6e2;
+  color: var(--danger);
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.action-row form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 253, 248, 0.92);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chip.danger {
+  color: var(--danger);
+  border-color: rgba(159, 60, 49, 0.25);
+}
+
+.action-row input[type="datetime-local"] {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
 @media (max-width: 720px) {
   .topbar {
     flex-direction: column;

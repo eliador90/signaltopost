@@ -1,10 +1,21 @@
 import type { Idea, User } from "@prisma/client";
-import { prisma } from "@/lib/db";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  archiveIdeaAction,
+  generateDraftsForIdeaAction,
+  sendIdeaToTelegramAction,
+} from "@/app/actions/dashboard";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function IdeasPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function IdeasPage({ searchParams }: { searchParams?: SearchParams }) {
+  const params = searchParams ? await searchParams : undefined;
+  const message = firstParam(params?.message);
+  const tone = firstParam(params?.tone);
+
   const ideas: Array<
     Idea & {
       user: User;
@@ -18,6 +29,7 @@ export default async function IdeasPage() {
   return (
     <section className="card">
       <h2>Ideas</h2>
+      {message ? <div className={`notice ${tone === "error" ? "error" : "success"}`}>{message}</div> : null}
       <div className="list">
         {ideas.length === 0 ? (
           <div className="empty">No ideas stored yet.</div>
@@ -36,10 +48,43 @@ export default async function IdeasPage() {
               {idea.normalizedContent && idea.normalizedContent !== idea.rawContent ? (
                 <p className="muted">Raw: {idea.rawContent}</p>
               ) : null}
+              <div className="action-row">
+                {idea.status === "NEW" ? (
+                  <>
+                    <form action={generateDraftsForIdeaAction}>
+                      <input name="ideaId" type="hidden" value={idea.id} />
+                      <input name="redirectPath" type="hidden" value="/ideas" />
+                      <button className="chip" type="submit">
+                        Generate drafts
+                      </button>
+                    </form>
+                    <form action={sendIdeaToTelegramAction}>
+                      <input name="ideaId" type="hidden" value={idea.id} />
+                      <input name="redirectPath" type="hidden" value="/ideas" />
+                      <button className="chip" type="submit">
+                        Send to Telegram
+                      </button>
+                    </form>
+                  </>
+                ) : null}
+                {idea.status !== "ARCHIVED" ? (
+                  <form action={archiveIdeaAction}>
+                    <input name="ideaId" type="hidden" value={idea.id} />
+                    <input name="redirectPath" type="hidden" value="/ideas" />
+                    <button className="chip danger" type="submit">
+                      Archive
+                    </button>
+                  </form>
+                ) : null}
+              </div>
             </article>
           ))
         )}
       </div>
     </section>
   );
+}
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
 }

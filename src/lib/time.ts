@@ -101,6 +101,33 @@ export function parseNaturalLanguageSchedule(input: string, timeZone = env.TIMEZ
   };
 }
 
+export function parseDateTimeLocalInput(input: string, timeZone = env.TIMEZONE, now = new Date()) {
+  const match = input.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const scheduledFor = zonedDateTimeToUtc(
+    {
+      year: Number(match[1]),
+      month: Number(match[2]),
+      day: Number(match[3]),
+      hour: Number(match[4]),
+      minute: Number(match[5]),
+    },
+    timeZone,
+  );
+
+  if (scheduledFor.getTime() <= now.getTime()) {
+    return null;
+  }
+
+  return {
+    scheduledFor,
+    label: formatDateTime(scheduledFor, timeZone),
+  };
+}
+
 function getZonedDateParts(date: Date, timeZone: string): ZonedDateParts {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
