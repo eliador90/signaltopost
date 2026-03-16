@@ -2,6 +2,17 @@
 
 SignalToPost is a private Telegram-first AI content agent for one user. It captures ideas from Telegram, turns them into X and LinkedIn drafts, and lets the user review them quickly.
 
+## Status
+
+Current project status:
+
+1. Production deployment is live on Vercel with Neon Postgres.
+2. Telegram webhook is running against the hosted app.
+3. GitHub Actions can trigger the protected cron routes.
+4. Hosted X direct posting is validated.
+5. Hosted LinkedIn manual fallback is validated.
+6. One remaining operational confirmation is to observe a production scheduled post being picked up automatically at its due time.
+
 ## Current scope
 
 Current implementation covers:

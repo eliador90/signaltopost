@@ -2,6 +2,21 @@
 
 SignalToPost is designed to run as an always-on hosted app.
 
+## Current status
+
+The current hosted setup has already been validated for:
+
+1. Vercel production deployment
+2. Neon Postgres connectivity
+3. Telegram webhook delivery to production
+4. GitHub Actions calling protected cron routes
+5. Hosted X direct posting
+6. Hosted LinkedIn manual fallback
+
+Still pending as an operational check:
+
+1. observing a production scheduled post publish automatically at its due time without a manual trigger
+
 Recommended stack:
 
 1. Vercel for the Next.js app and API routes.
