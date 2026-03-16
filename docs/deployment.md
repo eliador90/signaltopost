@@ -12,6 +12,8 @@ The current hosted setup has already been validated for:
 4. GitHub Actions calling protected cron routes
 5. Hosted X direct posting
 6. Hosted LinkedIn manual fallback
+7. GitHub webhook ingestion into production ideas
+8. Dashboard actions and Telegram handoff in production
 
 Still pending as an operational check:
 
@@ -31,6 +33,7 @@ Recommended stack:
 - Telegram delivers webhook updates to `/api/telegram`.
 - Neon stores users, ideas, drafts, jobs, GitHub events, and feedback.
 - GitHub Actions calls protected cron routes on a schedule.
+- GitHub webhooks deliver repository events to `/api/github/webhook`.
 - Local scheduler remains available for development only when `ENABLE_LOCAL_SCHEDULER=true`.
 
 ## Neon setup

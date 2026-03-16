@@ -100,8 +100,9 @@ File: [src/services/posts/scheduler.ts](C:\Users\remok\projects\signaltopost\src
 Purpose:
 - store scheduled draft jobs from Telegram preset schedule buttons
 
-Current limitation:
-- scheduling uses preset slots rather than natural-language parsing
+Current implementation details:
+- Telegram supports quick schedule slots and natural-language phrases such as `tomorrow 9` or `in 2 hours`
+- the web dashboard uses a standard datetime input for scheduling
 
 ### Publishing pipeline
 
@@ -166,7 +167,8 @@ Purpose:
 Current implementation details:
 - reads repositories from `GITHUB_REPOS`
 - assumes a single owner from `GITHUB_USERNAME`
-- uses REST polling through the cron route rather than GitHub webhooks
+- GitHub webhooks are the primary ingestion path in hosted environments
+- the `github_sync` cron/job remains available as a manual recovery path
 
 ### Morning digest
 
@@ -175,7 +177,6 @@ Files:
 - [src/app/api/cron/morning_digest/route.ts](C:\Users\remok\projects\signaltopost\src\app\api\cron\morning_digest\route.ts)
 
 Purpose:
-- run GitHub sync
 - generate drafts from new ideas
 - send a compact morning digest into Telegram with top GitHub signals and pending review drafts
 
@@ -189,7 +190,13 @@ Files:
 - [src/app/settings/page.tsx](C:\Users\remok\projects\signaltopost\src\app\settings\page.tsx)
 
 Purpose:
-- inspect the internal state without needing direct database access
+- inspect and operate the internal state without needing direct database access
+
+Current implementation details:
+- Ideas can be archived, generated into drafts, or sent back into Telegram
+- Drafts can be approved, rejected, posted immediately, scheduled, or sent to Telegram
+- Jobs can be canceled or sent back to Telegram for review
+- the Ideas page supports simple filtering so processed and archived ideas can be hidden by default
 
 ## Hosted deployment
 

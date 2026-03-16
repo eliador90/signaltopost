@@ -11,7 +11,9 @@ Current project status:
 3. GitHub Actions can trigger the protected cron routes.
 4. Hosted X direct posting is validated.
 5. Hosted LinkedIn manual fallback is validated.
-6. One remaining operational confirmation is to observe a production scheduled post being picked up automatically at its due time.
+6. GitHub webhook ingestion is validated in production.
+7. Dashboard actions and Telegram handoff are live in production.
+8. One remaining operational confirmation is to observe a production scheduled post being picked up automatically at its due time without a manual run.
 
 ## Current scope
 
@@ -24,7 +26,7 @@ Current implementation covers:
 5. OpenAI-powered normalization and draft generation with local fallbacks.
 6. Telegram inline actions for approve, reject, and rewrite.
 7. Scheduling data flow with queued post jobs, quick slots, and natural-language Telegram scheduling input.
-8. Minimal admin pages for ideas, drafts, jobs, and settings.
+8. Actionable dashboard pages for ideas, drafts, jobs, and settings.
 9. GitHub sync that ingests recent commits, merged pull requests, issues, and repo context from configured repositories.
 10. GitHub webhook ingestion for push, pull request, issue, release, and repository edit events.
 11. GitHub-to-idea summarization so repository activity can become draft candidates automatically.
@@ -35,6 +37,7 @@ Current implementation covers:
 16. Pre-generation style and format presets with saved per-platform defaults.
 17. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
 18. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
+19. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
 
 ## Local setup
 
@@ -55,6 +58,7 @@ Current implementation covers:
 5. It generates only the selected platform drafts.
 6. It sends the drafts back with inline review buttons and the selected preset metadata.
 7. Approve, reject, use richer rewrite controls, publish immediately, or schedule a draft with quick slots or a free-form time phrase like `tomorrow 9` or `in 2 hours`.
+8. Use the web dashboard to generate drafts, archive ideas, send ideas or drafts back into Telegram, schedule drafts, post now, or cancel pending jobs.
 
 ## GitHub flow
 
@@ -72,15 +76,14 @@ Important reminder:
 
 ## Progress note
 
-Done in Phase 1:
+Done so far:
 
-1. Telegram idea capture.
-2. OpenAI draft generation with fallback output.
-3. Telegram review actions.
-4. Simple scheduling persistence.
-5. Minimal admin inspection UI.
-6. Pre-generation style and format control with defaults.
-7. Publishing validated with live X posting and LinkedIn fallback.
+1. Telegram-first idea capture, preset-based draft generation, and review loop.
+2. Natural-language scheduling in Telegram plus web datetime scheduling.
+3. Hosted X posting and LinkedIn manual fallback.
+4. GitHub webhook ingestion with polling-style cron retained as manual recovery.
+5. Actionable dashboard controls for ideas, drafts, and jobs.
+6. Hosted deployment on Vercel + Neon + GitHub Actions.
 
 Next up:
 
@@ -124,3 +127,4 @@ GitHub:
 3. LinkedIn currently uses manual publish fallback rather than direct posting.
 4. GitHub webhook delivery must be configured explicitly in GitHub; the hourly `github_sync` action remains only as a manual fallback.
 5. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.
+6. The dashboard is operational for control and handoff, but Telegram remains the primary place for refinement and approval.
