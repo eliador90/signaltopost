@@ -5,9 +5,9 @@ import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services
 import { getFormatPreset, getStylePreset } from "@/services/ai/presets";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, parseNaturalLanguageSchedule } from "@/lib/time";
 import { publishDraftNow } from "@/services/posts/publisher";
-import { schedulePost, type SchedulePreset } from "@/services/posts/scheduler";
+import { schedulePost, schedulePostForDateTime, type SchedulePreset } from "@/services/posts/scheduler";
 import { normalizeIdea } from "@/services/ideas/normalize";
 import { answerCallbackQuery, sendTelegramMessage } from "@/services/telegram/bot";
 import { handleCommand } from "@/services/telegram/commands";
@@ -79,6 +79,43 @@ async function handleIncomingMessage(message: TelegramMessage) {
     return;
   }
 
+  if (user.awaitingScheduleInput && user.pendingScheduleDraftId) {
+    const draft = await prisma.draft.findUnique({
+      where: { id: user.pendingScheduleDraftId },
+    });
+
+    if (!draft || draft.userId !== user.id) {
+      await clearPendingSchedule(user.id);
+      await sendTelegramMessage(chatId, "I could not find the draft you wanted to schedule anymore.");
+      return;
+    }
+
+    const parsedSchedule = parseNaturalLanguageSchedule(text, user.timezone);
+    if (!parsedSchedule) {
+      await sendTelegramMessage(
+        chatId,
+        "I could not understand that time. Try something like 'tomorrow 9', 'monday 14:30', 'in 2 hours', or '2026-03-18 09:00'. Use /cancel to stop.",
+      );
+      return;
+    }
+
+    const scheduled = await schedulePostForDateTime(draft, user, parsedSchedule.scheduledFor);
+    await prisma.feedbackEvent.create({
+      data: {
+        userId: draft.userId,
+        draftId: draft.id,
+        action: FeedbackAction.SCHEDULED,
+        notes: scheduled.label,
+      },
+    });
+    await clearPendingSchedule(user.id);
+    await sendTelegramMessage(
+      chatId,
+      `Scheduled ${draft.platform} draft for ${scheduled.label}. It will publish when due or fall back to manual delivery if direct posting is unavailable.`,
+    );
+    return;
+  }
+
   const normalizedContent = await normalizeIdea(text);
   const idea = await createIdea({
     user,
@@ -95,6 +132,8 @@ async function handleIncomingMessage(message: TelegramMessage) {
       pendingFormatPreset: null,
       pendingGenerationNote: null,
       awaitingGenerationNote: false,
+      pendingScheduleDraftId: null,
+      awaitingScheduleInput: false,
     },
   });
 
@@ -166,7 +205,31 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       return;
     case "schedule_options":
       await answerCallbackQuery(callbackQuery.id, "Choose a schedule slot");
-      await sendTelegramMessage(chatId, "Choose when to queue this draft.", scheduleKeyboard(draft.id));
+      await sendTelegramMessage(
+        chatId,
+        "Choose a slot or type your own time phrase like 'tomorrow 9', 'friday 14:30', or 'in 2 hours'.",
+        scheduleKeyboard(draft.id),
+      );
+      return;
+    case "schedule_custom":
+      await prisma.user.update({
+        where: { id: draft.userId },
+        data: {
+          pendingScheduleDraftId: draft.id,
+          awaitingScheduleInput: true,
+          pendingIdeaId: null,
+          pendingPlatformSelection: null,
+          pendingStylePreset: null,
+          pendingFormatPreset: null,
+          pendingGenerationNote: null,
+          awaitingGenerationNote: false,
+        },
+      });
+      await answerCallbackQuery(callbackQuery.id, "Send a schedule time");
+      await sendTelegramMessage(
+        chatId,
+        "Send when this should publish. Examples: 'tomorrow 9', 'monday 14:30', 'in 2 hours', or '2026-03-18 09:00'. Use /cancel to stop.",
+      );
       return;
     case "post_now": {
       await answerCallbackQuery(callbackQuery.id, "Publishing now");
@@ -180,6 +243,7 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
     case "schedule_tomorrow_1400": {
       const preset = action.replace("schedule_", "") as SchedulePreset;
       const scheduled = await schedulePost(draft, draft.user, preset);
+      await clearPendingSchedule(draft.userId);
       await prisma.feedbackEvent.create({
         data: {
           userId: draft.userId,
@@ -576,6 +640,16 @@ async function clearPendingSelection(userId: string) {
       pendingFormatPreset: null,
       pendingGenerationNote: null,
       awaitingGenerationNote: false,
+    },
+  });
+}
+
+async function clearPendingSchedule(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      pendingScheduleDraftId: null,
+      awaitingScheduleInput: false,
     },
   });
 }

@@ -80,6 +80,7 @@ export function scheduleKeyboard(draftId: string) {
         { text: "Tomorrow 09:00", callback_data: `draft:schedule_tomorrow_0900:${draftId}` },
         { text: "Tomorrow 14:00", callback_data: `draft:schedule_tomorrow_1400:${draftId}` },
       ],
+      [{ text: "Type a time", callback_data: `draft:schedule_custom:${draftId}` }],
       [{ text: "Back to actions", callback_data: `draft:show_actions:${draftId}` }],
     ],
   };

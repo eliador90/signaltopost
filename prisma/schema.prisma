@@ -84,6 +84,8 @@ model User {
   pendingFormatPreset         String?
   pendingGenerationNote       String?
   awaitingGenerationNote      Boolean                  @default(false)
+  pendingScheduleDraftId      String?
+  awaitingScheduleInput       Boolean                  @default(false)
   createdAt                   DateTime                 @default(now())
   ideas                       Idea[]
   githubEvents                GithubEvent[]

@@ -17,6 +17,15 @@ type IngestResult = {
   repos: string[];
 };
 
+export type GithubEventCandidate = {
+  repoName: string;
+  eventType: GithubEventType;
+  title: string;
+  body: string | null;
+  eventTimestamp: Date;
+  fingerprint: string;
+};
+
 export async function ingestGithubEvents() {
   const user = await prisma.user.findFirst();
   const repos = getConfiguredGithubRepos();
@@ -55,57 +64,9 @@ export async function ingestGithubEvents() {
         .sort((left, right) => scoreGithubCandidate(right) - scoreGithubCandidate(left))
         .slice(0, 4);
 
-      for (const candidate of candidateEvents) {
-        const existing = await prisma.githubEvent.findUnique({
-          where: { fingerprint: candidate.fingerprint },
-        });
-
-        if (existing) {
-          continue;
-        }
-
-        const savedEvent = await prisma.githubEvent.create({
-          data: {
-            userId: user.id,
-            repoName: candidate.repoName,
-            eventType: candidate.eventType,
-            title: candidate.title,
-            body: candidate.body,
-            eventTimestamp: candidate.eventTimestamp,
-            fingerprint: candidate.fingerprint,
-            processed: false,
-          },
-        });
-
-        synced += 1;
-
-        const summary = await summarizeGithubEvent(
-          [
-            `GitHub activity in ${candidate.repoName}`,
-            candidate.title,
-            candidate.body ?? "",
-          ]
-            .filter(Boolean)
-            .join("\n\n"),
-        );
-
-        await prisma.idea.create({
-          data: {
-            userId: user.id,
-            source: IdeaSource.GITHUB,
-            rawContent: [candidate.title, candidate.body].filter(Boolean).join("\n\n"),
-            normalizedContent: summary,
-            status: "NEW",
-          },
-        });
-
-        await prisma.githubEvent.update({
-          where: { id: savedEvent.id },
-          data: { processed: true },
-        });
-
-        ideasCreated += 1;
-      }
+      const result = await ingestGithubCandidates(user.id, candidateEvents);
+      synced += result.synced;
+      ideasCreated += result.ideasCreated;
     } catch (error) {
       logger.warn("GitHub ingestion failed for repo", { repoName, error });
     }
@@ -114,34 +75,176 @@ export async function ingestGithubEvents() {
   return { synced, ideasCreated, repos };
 }
 
-function buildRepositoryEvent(repoName: string, description: string | null) {
+export async function ingestGithubWebhookEvent(
+  repoName: string,
+  candidates: GithubEventCandidate[],
+) {
+  const user = await prisma.user.findFirst();
+  if (!user) {
+    return { synced: 0, ideasCreated: 0, repoName, reason: "no_user" as const };
+  }
+
+  const configuredRepos = getConfiguredGithubRepos();
+  if (!configuredRepos.includes(repoName)) {
+    return { synced: 0, ideasCreated: 0, repoName, reason: "repo_not_configured" as const };
+  }
+
+  const result = await ingestGithubCandidates(user.id, candidates);
+  return { ...result, repoName };
+}
+
+export async function ingestGithubCandidates(userId: string, candidates: GithubEventCandidate[]) {
+  let synced = 0;
+  let ideasCreated = 0;
+
+  for (const candidate of candidates) {
+    const existing = await prisma.githubEvent.findUnique({
+      where: { fingerprint: candidate.fingerprint },
+    });
+
+    if (existing) {
+      continue;
+    }
+
+    const savedEvent = await prisma.githubEvent.create({
+      data: {
+        userId,
+        repoName: candidate.repoName,
+        eventType: candidate.eventType,
+        title: candidate.title,
+        body: candidate.body,
+        eventTimestamp: candidate.eventTimestamp,
+        fingerprint: candidate.fingerprint,
+        processed: false,
+      },
+    });
+
+    synced += 1;
+
+    const summary = await summarizeGithubEvent(
+      [
+        `GitHub activity in ${candidate.repoName}`,
+        candidate.title,
+        candidate.body ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    );
+
+    await prisma.idea.create({
+      data: {
+        userId,
+        source: IdeaSource.GITHUB,
+        rawContent: [candidate.title, candidate.body].filter(Boolean).join("\n\n"),
+        normalizedContent: summary,
+        status: "NEW",
+      },
+    });
+
+    await prisma.githubEvent.update({
+      where: { id: savedEvent.id },
+      data: { processed: true },
+    });
+
+    ideasCreated += 1;
+  }
+
+  return { synced, ideasCreated };
+}
+
+export function buildRepositoryEvent(repoName: string, description: string | null) {
   const title = `Repository context for ${repoName}`;
   const body = description ? `Repository description: ${description}` : "Repository description unavailable.";
   return buildEventRecord(repoName, GithubEventType.REPOSITORY, title, body, new Date());
 }
 
-function buildCommitEvent(repoName: string, commit: GithubCommitPayload) {
+export function buildCommitEvent(repoName: string, commit: GithubCommitPayload) {
   const eventTimestamp = new Date(commit.commit.author?.date ?? Date.now());
   const title = `Commit in ${repoName}: ${firstLine(commit.commit.message)}`;
   const body = `Commit message:\n${commit.commit.message}\n\nURL: ${commit.html_url}`;
   return buildEventRecord(repoName, GithubEventType.COMMIT, title, body, eventTimestamp, commit.sha);
 }
 
-function buildPullRequestEvent(repoName: string, pull: GithubPullRequestPayload) {
+export function buildPullRequestEvent(repoName: string, pull: GithubPullRequestPayload) {
   const eventTimestamp = new Date(pull.merged_at ?? pull.updated_at);
   const title = `Merged PR in ${repoName}: ${pull.title}`;
   const body = [pull.body ?? "", `PR #${pull.number}`, `URL: ${pull.html_url}`].filter(Boolean).join("\n\n");
   return buildEventRecord(repoName, GithubEventType.PULL_REQUEST, title, body, eventTimestamp, String(pull.id));
 }
 
-function buildIssueEvent(repoName: string, issue: GithubIssuePayload) {
+export function buildIssueEvent(repoName: string, issue: GithubIssuePayload) {
   const eventTimestamp = new Date(issue.updated_at);
   const title = `Issue update in ${repoName}: ${issue.title}`;
   const body = [issue.body ?? "", `Issue #${issue.number}`, `URL: ${issue.html_url}`].filter(Boolean).join("\n\n");
   return buildEventRecord(repoName, GithubEventType.ISSUE, title, body, eventTimestamp, String(issue.id));
 }
 
-function buildEventRecord(
+export function buildReleaseEvent(
+  repoName: string,
+  release: {
+    id: number;
+    tag_name: string;
+    name?: string | null;
+    body?: string | null;
+    html_url: string;
+    published_at?: string | null;
+    created_at?: string | null;
+  },
+) {
+  const eventTimestamp = new Date(release.published_at ?? release.created_at ?? Date.now());
+  const title = `Release in ${repoName}: ${release.name || release.tag_name}`;
+  const body = [release.body ?? "", `Tag: ${release.tag_name}`, `URL: ${release.html_url}`].filter(Boolean).join("\n\n");
+  return buildEventRecord(repoName, GithubEventType.RELEASE, title, body, eventTimestamp, String(release.id));
+}
+
+export function buildWebhookPullRequestEvent(
+  repoName: string,
+  pull: {
+    id: number;
+    number: number;
+    title: string;
+    body?: string | null;
+    html_url: string;
+    updated_at: string;
+    merged_at?: string | null;
+  },
+  action: string,
+) {
+  const isMerged = Boolean(pull.merged_at);
+  const title = `${isMerged ? "Merged" : capitalize(action)} PR in ${repoName}: ${pull.title}`;
+  const body = [pull.body ?? "", `PR #${pull.number}`, `Action: ${action}`, `URL: ${pull.html_url}`]
+    .filter(Boolean)
+    .join("\n\n");
+  return buildEventRecord(
+    repoName,
+    GithubEventType.PULL_REQUEST,
+    title,
+    body,
+    new Date(pull.merged_at ?? pull.updated_at),
+    String(pull.id),
+  );
+}
+
+export function buildWebhookIssueEvent(
+  repoName: string,
+  issue: {
+    id: number;
+    number: number;
+    title: string;
+    body?: string | null;
+    html_url: string;
+    updated_at: string;
+  },
+  action: string,
+) {
+  const title = `${capitalize(action)} issue in ${repoName}: ${issue.title}`;
+  const body = [issue.body ?? "", `Issue #${issue.number}`, `Action: ${action}`, `URL: ${issue.html_url}`]
+    .filter(Boolean)
+    .join("\n\n");
+  return buildEventRecord(repoName, GithubEventType.ISSUE, title, body, new Date(issue.updated_at), String(issue.id));
+}
+
+export function buildEventRecord(
   repoName: string,
   eventType: GithubEventType,
   title: string,
@@ -193,4 +296,8 @@ function scoreGithubCandidate(candidate: {
   }
 
   return score;
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

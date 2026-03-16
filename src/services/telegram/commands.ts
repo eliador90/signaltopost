@@ -19,14 +19,19 @@ export async function handleCommand(command: string, chatId: string) {
         "/today",
         "/settings",
         "/postnow",
+        "",
+        "Scheduling examples:",
+        "tomorrow 9",
+        "monday 14:30",
+        "in 2 hours",
       ].join("\n");
     case "/cancel": {
       const user = await prisma.user.findUnique({
         where: { telegramChatId: chatId },
       });
 
-      if (!user?.pendingIdeaId && !user?.awaitingGenerationNote) {
-        return "No pending generation flow to cancel.";
+      if (!user?.pendingIdeaId && !user?.awaitingGenerationNote && !user?.pendingScheduleDraftId && !user?.awaitingScheduleInput) {
+        return "No pending generation or scheduling flow to cancel.";
       }
 
       await prisma.user.update({
@@ -38,10 +43,12 @@ export async function handleCommand(command: string, chatId: string) {
           pendingFormatPreset: null,
           pendingGenerationNote: null,
           awaitingGenerationNote: false,
+          pendingScheduleDraftId: null,
+          awaitingScheduleInput: false,
         },
       });
 
-      return "Cancelled the pending generation flow.";
+      return "Cancelled the pending flow.";
     }
     case "/idea":
       return "Send a normal message with your thought, build update, or lesson learned.";
@@ -105,7 +112,7 @@ export async function handleCommand(command: string, chatId: string) {
         });
 
         if (jobs.length === 0) {
-          return "No scheduled drafts yet. Use the Schedule button on a draft to queue it for tomorrow.";
+          return "No scheduled drafts yet. Use the Schedule button on a draft to pick a slot or type a custom time phrase.";
         }
 
         return jobs

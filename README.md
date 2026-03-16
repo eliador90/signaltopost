@@ -23,17 +23,18 @@ Current implementation covers:
 4. Automatic idea capture from Telegram messages.
 5. OpenAI-powered normalization and draft generation with local fallbacks.
 6. Telegram inline actions for approve, reject, and rewrite.
-7. Simple scheduling data flow with queued post jobs and preset Telegram slots.
+7. Scheduling data flow with queued post jobs, quick slots, and natural-language Telegram scheduling input.
 8. Minimal admin pages for ideas, drafts, jobs, and settings.
 9. GitHub sync that ingests recent commits, merged pull requests, issues, and repo context from configured repositories.
-10. GitHub-to-idea summarization so repository activity can become draft candidates automatically.
-11. Morning digest and draft-generation cron endpoints.
-12. Scheduled publish processing with X direct-post support when credentials are configured.
-13. LinkedIn manual publish fallback delivered through Telegram.
-14. Immediate publish from Telegram via the `Post now` button or `/postnow`.
-15. Pre-generation style and format presets with saved per-platform defaults.
-16. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
-17. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
+10. GitHub webhook ingestion for push, pull request, issue, release, and repository edit events.
+11. GitHub-to-idea summarization so repository activity can become draft candidates automatically.
+12. Morning digest and draft-generation cron endpoints.
+13. Scheduled publish processing with X direct-post support when credentials are configured.
+14. LinkedIn manual publish fallback delivered through Telegram.
+15. Immediate publish from Telegram via the `Post now` button or `/postnow`.
+16. Pre-generation style and format presets with saved per-platform defaults.
+17. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
+18. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
 
 ## Local setup
 
@@ -53,15 +54,17 @@ Current implementation covers:
 4. Choose a style preset and a format preset, then optionally add one short note.
 5. It generates only the selected platform drafts.
 6. It sends the drafts back with inline review buttons and the selected preset metadata.
-7. Approve, reject, use richer rewrite controls, publish immediately, or queue a draft for tomorrow.
+7. Approve, reject, use richer rewrite controls, publish immediately, or schedule a draft with quick slots or a free-form time phrase like `tomorrow 9` or `in 2 hours`.
 
 ## GitHub flow
 
-1. Configure `GITHUB_TOKEN`, `GITHUB_USERNAME`, and `GITHUB_REPOS` in `.env`.
-2. Trigger the sync route or run the GitHub sync job.
-3. Recent repo activity is stored in `github_events`.
-4. Strong events are summarized into `ideas` with source `GITHUB`.
-5. Draft generation can turn those ideas into pending review drafts.
+1. Configure `GITHUB_TOKEN`, `GITHUB_USERNAME`, `GITHUB_REPOS`, and `GITHUB_WEBHOOK_SECRET` in `.env`.
+2. Register a GitHub webhook against `/api/github/webhook` for push, pull request, issues, release, and repository events.
+3. Webhook deliveries are verified with `X-Hub-Signature-256`.
+4. Recent repo activity is stored in `github_events`.
+5. Strong events are summarized into `ideas` with source `GITHUB`.
+6. Draft generation can turn those ideas into pending review drafts.
+7. The hourly `github_sync` cron remains available as a manual recovery path, not the primary ingestion path.
 
 ## Progress note
 
@@ -77,12 +80,11 @@ Done in Phase 1:
 
 Next up:
 
-1. Better natural-language scheduling.
-2. Harden direct X posting against more API edge cases.
-3. Improve morning digest formatting and button flows further.
-4. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
-5. Add stronger post-generation validation for exact constraints like sentence count when needed.
-6. Tighten hosted deployment observability and seasonal cron timing for Zurich.
+1. Harden direct X posting against more API edge cases.
+2. Improve morning digest formatting and button flows further.
+3. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
+4. Add stronger post-generation validation for exact constraints like sentence count when needed.
+5. Tighten hosted deployment observability and seasonal cron timing for Zurich.
 
 ## Important env vars
 
@@ -109,11 +111,12 @@ GitHub:
 - `GITHUB_TOKEN`
 - `GITHUB_USERNAME`
 - `GITHUB_REPOS`
+- `GITHUB_WEBHOOK_SECRET`
 
 ## Current limitations
 
-1. Scheduling currently uses preset Telegram slots instead of full natural-language parsing.
+1. Natural-language scheduling is intentionally lightweight and works best for phrases like `tomorrow 9`, `monday 14:30`, `in 2 hours`, or explicit dates.
 2. X direct posting depends on valid X API credentials and credits.
 3. LinkedIn currently uses manual publish fallback rather than direct posting.
-4. GitHub webhook ingestion is still stubbed; the current implementation uses scheduled polling-style sync.
+4. GitHub webhook delivery must be configured explicitly in GitHub; the hourly `github_sync` action remains only as a manual fallback.
 5. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.

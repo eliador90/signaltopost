@@ -53,6 +53,28 @@ export async function schedulePost(
   };
 }
 
+export async function schedulePostForDateTime(
+  draft: Draft,
+  user: Pick<User, "id" | "timezone">,
+  scheduledFor: Date,
+) {
+  const job = await enqueuePost(draft, scheduledFor);
+
+  await prisma.draft.update({
+    where: { id: draft.id },
+    data: {
+      status: "SCHEDULED",
+      scheduledFor,
+    },
+  });
+
+  return {
+    job,
+    scheduledFor,
+    label: formatDateTime(scheduledFor, user.timezone),
+  };
+}
+
 export function isSchedulePreset(value: string): value is SchedulePreset {
   return value in presetConfig;
 }

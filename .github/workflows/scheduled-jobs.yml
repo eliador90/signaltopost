@@ -16,8 +16,7 @@ on:
           - cleanup
   schedule:
     - cron: "*/15 * * * *" # publish_posts every 15 minutes
-    - cron: "0 * * * *" # github_sync every hour
-    - cron: "5 * * * *" # generate_drafts every hour, offset after sync
+    - cron: "5 * * * *" # generate_drafts every hour after webhook-driven GitHub ingestion
     - cron: "0 6 * * *" # morning_digest at 06:00 UTC, review seasonally for Europe/Zurich DST
     - cron: "0 2 * * *" # cleanup at 02:00 UTC, review seasonally for Europe/Zurich DST
 
@@ -33,7 +32,7 @@ jobs:
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/publish_posts"
 
   github_sync:
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'github_sync') || github.event.schedule == '0 * * * *'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'github_sync'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger github_sync cron route

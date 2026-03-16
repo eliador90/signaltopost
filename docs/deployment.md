@@ -23,6 +23,7 @@ Recommended stack:
 2. Neon Postgres for the database.
 3. GitHub Actions for scheduled jobs.
 4. Telegram webhook pointed at the Vercel production URL.
+5. GitHub webhook pointed at the production `/api/github/webhook` route for primary repo ingestion.
 
 ## Architecture
 
@@ -65,6 +66,7 @@ DIRECT_DATABASE_URL=postgresql://...
    - `GITHUB_TOKEN`
    - `GITHUB_USERNAME`
    - `GITHUB_REPOS`
+   - `GITHUB_WEBHOOK_SECRET`
    - `X_API_KEY`
    - `X_API_KEY_SECRET`
    - `X_ACCESS_TOKEN`
@@ -107,6 +109,29 @@ curl.exe "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 ```
 4. Stop using ngrok for normal daily use.
 
+## GitHub webhook cutover
+
+After Vercel is live:
+
+1. Set:
+```env
+GITHUB_WEBHOOK_SECRET=<your-random-secret>
+```
+2. In each tracked GitHub repository, add a webhook pointing to:
+```text
+https://<your-app>.vercel.app/api/github/webhook
+```
+3. Use:
+   - `Content type`: `application/json`
+   - `Secret`: the same `GITHUB_WEBHOOK_SECRET`
+4. Subscribe to at least:
+   - push
+   - pull requests
+   - issues
+   - releases
+   - repository
+5. Use the hourly `github_sync` workflow only as a manual recovery path if webhook delivery is missed.
+
 ## GitHub Actions scheduled jobs
 
 The repo includes [.github/workflows/scheduled-jobs.yml](C:\Users\remok\projects\signaltopost\.github\workflows\scheduled-jobs.yml).
@@ -125,6 +150,8 @@ The workflow triggers:
 - `/api/cron/cleanup`
 
 GitHub Actions cron uses UTC. The comments in the workflow show the intended Zurich schedule and should be reviewed if DST alignment matters strictly.
+
+The `github_sync` action is no longer scheduled hourly by default. It remains available for manual recovery runs while webhook ingestion is the primary path.
 
 ## Rollback
 
