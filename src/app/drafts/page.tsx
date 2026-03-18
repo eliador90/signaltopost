@@ -75,6 +75,7 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
               <div className="action-groups">
                 <div className="action-group">
                   <span className="action-label">Decision</span>
+                  <span className="action-help">Accept or reject this draft.</span>
                   <div className="action-row">
                     {draft.status !== "APPROVED" && draft.status !== "POSTED" ? (
                       <form action={approveDraftAction}>
@@ -98,6 +99,7 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
                 </div>
                 <div className="action-group">
                   <span className="action-label">Publish</span>
+                  <span className="action-help">Publish immediately or schedule it.</span>
                   <div className="action-row">
                     {draft.status !== "POSTED" ? (
                       <form action={postDraftNowAction}>
@@ -122,6 +124,7 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
                 </div>
                 <div className="action-group">
                   <span className="action-label">Telegram</span>
+                  <span className="action-help">Continue the review flow in chat.</span>
                   <div className="action-row">
                     <form action={sendDraftToTelegramAction}>
                       <input name="draftId" type="hidden" value={draft.id} />

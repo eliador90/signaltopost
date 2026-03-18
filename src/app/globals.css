@@ -262,6 +262,11 @@ select {
   letter-spacing: 0.08em;
 }
 
+.action-help {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .action-row form {
   display: flex;
   gap: 8px;
