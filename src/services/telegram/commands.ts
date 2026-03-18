@@ -118,7 +118,7 @@ export async function handleCommand(command: string, chatId: string) {
         return "No Telegram user is linked yet. Send a normal message first so I can create your profile.";
       }
 
-      const draft = await prisma.draft.findFirst({
+      const drafts = await prisma.draft.findMany({
         where: {
           userId: user.id,
           status: "PENDING_REVIEW",
@@ -126,11 +126,23 @@ export async function handleCommand(command: string, chatId: string) {
         orderBy: [{ qualityScore: "desc" }, { createdAt: "desc" }],
       });
 
-      if (!draft) {
+      if (drafts.length === 0) {
         return "No drafts are waiting for review right now.";
       }
 
-      await sendDraftForReview(chatId, draft.id);
+      const lastIndex = user.lastReviewedDraftId
+        ? drafts.findIndex((draft) => draft.id === user.lastReviewedDraftId)
+        : -1;
+      const nextDraft = drafts[(lastIndex + 1 + drafts.length) % drafts.length];
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastReviewedDraftId: nextDraft.id,
+        },
+      });
+
+      await sendDraftForReview(chatId, nextDraft.id);
       return null;
     }
     case "/drafts": {

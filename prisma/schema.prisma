@@ -86,6 +86,7 @@ model User {
   awaitingGenerationNote      Boolean                  @default(false)
   pendingScheduleDraftId      String?
   awaitingScheduleInput       Boolean                  @default(false)
+  lastReviewedDraftId         String?
   createdAt                   DateTime                 @default(now())
   ideas                       Idea[]
   githubEvents                GithubEvent[]

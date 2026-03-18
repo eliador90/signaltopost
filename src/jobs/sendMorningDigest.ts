@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isNearDuplicateDraft } from "@/services/ai/dedup";
 import { runGenerateDraftsJob } from "@/jobs/generateDrafts";
 import { sendTelegramMessage } from "@/services/telegram/bot";
+import { sendDraftForReview } from "@/services/telegram/handlers";
 
 export async function runMorningDigestJob() {
   const user = await prisma.user.findFirst();
@@ -38,17 +39,34 @@ export async function runMorningDigestJob() {
   });
 
   const digest = [
-    "Good morning.",
+    "<b>Good morning.</b>",
     "",
-    githubSignals.length > 0 ? "Top GitHub signals:" : "No fresh GitHub signals yet.",
-    ...githubSignals.map((idea, index) => `${index + 1}. ${idea.normalizedContent ?? idea.rawContent}`),
+    githubSignals.length > 0 ? "<b>Top GitHub signals</b>" : "<b>GitHub signals</b>",
+    ...(githubSignals.length > 0
+      ? githubSignals.map(
+          (idea, index) => `${index + 1}. ${escapeTelegramHtml(idea.normalizedContent ?? idea.rawContent)}`,
+        )
+      : ["No fresh GitHub signals yet."]),
     "",
-    "Top drafts to review today:",
-    ...uniqueDrafts.map((draft, index) => `${index + 1}. [${draft.platform}] ${draft.content}`),
+    "<b>Review queue</b>",
+    `I found ${uniqueDrafts.length} draft${uniqueDrafts.length === 1 ? "" : "s"} ready for review below.`,
     "",
     `Summary: ${githubSignals.length} recent GitHub signals and ${generated.processedIdeas} ideas turned into drafts.`,
   ].join("\n");
 
-  await sendTelegramMessage(user.telegramChatId, digest);
+  await sendTelegramMessage(user.telegramChatId, digest, undefined, {
+    parseMode: "HTML",
+  });
+
+  for (const draft of uniqueDrafts) {
+    await sendDraftForReview(user.telegramChatId, draft.id);
+  }
   return { sent: true, count: uniqueDrafts.length, generated };
+}
+
+function escapeTelegramHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }

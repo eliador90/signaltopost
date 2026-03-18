@@ -471,8 +471,10 @@ export async function sendDraftForReview(chatId: string, draftId: string) {
   const body = [
     `<b>${escapeTelegramHtml(title)}</b>`,
     "",
-    "<b>Meta</b>",
-    escapeTelegramHtml(sourceLine),
+    "<b>Source</b>",
+    escapeTelegramHtml(sourceLine.replace(/^Source:\s*/, "")),
+    "",
+    "<b>Settings</b>",
     escapeTelegramHtml(preferenceLine),
     noteLine ? escapeTelegramHtml(noteLine) : null,
     "",
