@@ -126,7 +126,7 @@ Current implementation details:
 - Telegram receives the publish result or manual instructions
 - `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
 - local development can also run a lightweight in-process publish scheduler when enabled via env vars
-- hosted deployments should use the protected cron routes via GitHub Actions instead of the local scheduler
+- hosted deployments should use the protected cron routes via separate GitHub Actions workflows instead of the local scheduler
 
 ### Preset defaults
 

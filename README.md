@@ -140,4 +140,5 @@ GitHub:
 4. GitHub webhook delivery must be configured explicitly in GitHub; the hourly `github_sync` action remains only as a manual fallback.
 5. If GitHub idea automation is disabled, incoming GitHub events are stored but do not get summarized into ideas until future events arrive after re-enabling.
 6. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.
+7. Production cron automation now uses separate GitHub Actions workflows per concern so the Actions UI stays readable and each run maps to one responsibility.
 7. The dashboard is operational for control and handoff, but Telegram remains the primary place for refinement and approval.
