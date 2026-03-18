@@ -64,6 +64,7 @@ Purpose:
 - optionally capture one short custom generation note
 - send back generated drafts
 - process approve, reject, rewrite, immediate publish, and schedule actions
+- expose `/nextidea`, `/review`, and `/githubideas on|off` commands
 
 ### AI generation
 
@@ -169,6 +170,9 @@ Current implementation details:
 - assumes a single owner from `GITHUB_USERNAME`
 - GitHub webhooks are the primary ingestion path in hosted environments
 - the `github_sync` cron/job remains available as a manual recovery path
+- respects `githubIdeaAutomationEnabled` at the user level
+- caps automatic GitHub idea generation using `GITHUB_MAX_IDEAS_PER_DAY` and `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
+- enforces the cap before summarization so the OpenAI usage is also reduced
 
 ### Morning digest
 
@@ -178,7 +182,8 @@ Files:
 
 Purpose:
 - generate drafts from new ideas
-- send a compact morning digest into Telegram with top GitHub signals and pending review drafts
+- send a compact morning digest into Telegram with top GitHub signals
+- follow the summary with separate Telegram review cards for each recommended draft
 
 ### Admin pages
 
@@ -194,9 +199,13 @@ Purpose:
 
 Current implementation details:
 - Ideas can be archived, generated into drafts, or sent back into Telegram
-- Drafts can be approved, rejected, posted immediately, scheduled, or sent to Telegram
+- Drafts page supports status filtering for `pending review`, `posted`, and `rejected`
+- Draft actions are grouped into `Decision`, `Publish`, and `Telegram`
+- `Mark ready` keeps the acceptance state separate from `Post now`
+- `Review in Telegram` re-opens the draft inside the Telegram review loop
 - Jobs can be canceled or sent back to Telegram for review
 - the Ideas page supports simple filtering so processed and archived ideas can be hidden by default
+- the Ideas page shows creation timestamps
 
 ## Hosted deployment
 

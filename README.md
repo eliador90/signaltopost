@@ -30,14 +30,17 @@ Current implementation covers:
 9. GitHub sync that ingests recent commits, merged pull requests, issues, and repo context from configured repositories.
 10. GitHub webhook ingestion for push, pull request, issue, release, and repository edit events.
 11. GitHub-to-idea summarization so repository activity can become draft candidates automatically.
-12. Morning digest and draft-generation cron endpoints.
-13. Scheduled publish processing with X direct-post support when credentials are configured.
-14. LinkedIn manual publish fallback delivered through Telegram.
-15. Immediate publish from Telegram via the `Post now` button or `/postnow`.
-16. Pre-generation style and format presets with saved per-platform defaults.
-17. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
-18. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
-19. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
+12. Daily GitHub idea caps with per-repo throttling to keep volume manageable and reduce API spend.
+13. Morning digest that sends a short summary plus separate Telegram review cards for each recommended draft.
+14. GitHub idea automation toggle in Telegram and on the dashboard.
+15. Morning digest and draft-generation cron endpoints.
+16. Scheduled publish processing with X direct-post support when credentials are configured.
+17. LinkedIn manual publish fallback delivered through Telegram.
+18. Immediate publish from Telegram via the `Post now` button or `/postnow`.
+19. Pre-generation style and format presets with saved per-platform defaults.
+20. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
+21. Hosted deployment path for Vercel + Neon + GitHub Actions cron jobs.
+22. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
 
 ## Local setup
 
@@ -56,9 +59,12 @@ Current implementation covers:
 3. Choose `X`, `LinkedIn`, or `Both`.
 4. Choose a style preset and a format preset, then optionally add one short note.
 5. It generates only the selected platform drafts.
-6. It sends the drafts back with inline review buttons and the selected preset metadata.
-7. Approve, reject, use richer rewrite controls, publish immediately, or schedule a draft with quick slots or a free-form time phrase like `tomorrow 9` or `in 2 hours`.
-8. Use the web dashboard to generate drafts, archive ideas, send ideas or drafts back into Telegram, schedule drafts, post now, or cancel pending jobs.
+6. It sends the drafts back with inline review buttons and clearer sectioned formatting.
+7. Use `/nextidea` to pull the next GitHub idea into Telegram.
+8. Use `/review` to cycle through the open `PENDING_REVIEW` drafts.
+9. Use `/githubideas`, `/githubideas on`, or `/githubideas off` to inspect or control automatic GitHub idea generation.
+10. Approve, reject, use richer rewrite controls, publish immediately, or schedule a draft with quick slots or a free-form time phrase like `tomorrow 9` or `in 2 hours`.
+11. Use the web dashboard to generate drafts, archive ideas, send ideas or drafts back into Telegram, schedule drafts, post now, or cancel pending jobs.
 
 ## GitHub flow
 
@@ -66,9 +72,12 @@ Current implementation covers:
 2. Register a GitHub webhook against `/api/github/webhook` for push, pull request, issues, release, and repository events.
 3. Webhook deliveries are verified with `X-Hub-Signature-256`.
 4. Recent repo activity is stored in `github_events`.
-5. Strong events are summarized into `ideas` with source `GITHUB`.
-6. Draft generation can turn those ideas into pending review drafts.
-7. The hourly `github_sync` cron remains available as a manual recovery path, not the primary ingestion path.
+5. If GitHub idea automation is enabled, strong events are summarized into `ideas` with source `GITHUB`.
+6. Automatic GitHub idea generation is capped to avoid backlog overload:
+   - total daily cap via `GITHUB_MAX_IDEAS_PER_DAY`
+   - per-repo daily cap via `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
+7. Draft generation can turn those ideas into pending review drafts.
+8. The hourly `github_sync` cron remains available as a manual recovery path, not the primary ingestion path.
 
 Important reminder:
 
@@ -82,8 +91,9 @@ Done so far:
 2. Natural-language scheduling in Telegram plus web datetime scheduling.
 3. Hosted X posting and LinkedIn manual fallback.
 4. GitHub webhook ingestion with polling-style cron retained as manual recovery.
-5. Actionable dashboard controls for ideas, drafts, and jobs.
-6. Hosted deployment on Vercel + Neon + GitHub Actions.
+5. Actionable dashboard controls for ideas, drafts, jobs, and GitHub automation.
+6. Telegram commands for review queue access and GitHub idea automation control.
+7. Hosted deployment on Vercel + Neon + GitHub Actions.
 
 Next up:
 
@@ -119,6 +129,8 @@ GitHub:
 - `GITHUB_USERNAME`
 - `GITHUB_REPOS`
 - `GITHUB_WEBHOOK_SECRET`
+- `GITHUB_MAX_IDEAS_PER_DAY`
+- `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
 
 ## Current limitations
 
@@ -126,5 +138,6 @@ GitHub:
 2. X direct posting depends on valid X API credentials and credits.
 3. LinkedIn currently uses manual publish fallback rather than direct posting.
 4. GitHub webhook delivery must be configured explicitly in GitHub; the hourly `github_sync` action remains only as a manual fallback.
-5. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.
-6. The dashboard is operational for control and handoff, but Telegram remains the primary place for refinement and approval.
+5. If GitHub idea automation is disabled, incoming GitHub events are stored but do not get summarized into ideas until future events arrive after re-enabling.
+6. GitHub Actions schedules use UTC and may need seasonal review for exact Zurich morning timing.
+7. The dashboard is operational for control and handoff, but Telegram remains the primary place for refinement and approval.

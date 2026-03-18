@@ -70,6 +70,8 @@ DIRECT_DATABASE_URL=postgresql://...
    - `GITHUB_USERNAME`
    - `GITHUB_REPOS`
    - `GITHUB_WEBHOOK_SECRET`
+   - `GITHUB_MAX_IDEAS_PER_DAY`
+   - `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
    - `X_API_KEY`
    - `X_API_KEY_SECRET`
    - `X_ACCESS_TOKEN`
@@ -93,6 +95,7 @@ cmd /c npx prisma generate
 cmd /c npx prisma migrate deploy
 ```
 3. Once the database is initialized, Vercel can use the same production schema.
+4. Any later Prisma schema changes also require `cmd /c npx prisma migrate deploy` against the production database. A Git push alone does not apply database changes.
 
 ## Telegram cutover
 
@@ -144,6 +147,11 @@ Add these GitHub repository secrets:
 - `SIGNALTOPOST_BASE_URL`
 - `SIGNALTOPOST_CRON_SECRET`
 
+Important:
+
+- `SIGNALTOPOST_BASE_URL` should be the stable production URL, for example `https://signaltopost.vercel.app`
+- the workflow uses `curl --location` so Vercel redirects do not silently swallow cron calls
+
 The workflow triggers:
 
 - `/api/cron/publish_posts`
@@ -155,6 +163,14 @@ The workflow triggers:
 GitHub Actions cron uses UTC. The comments in the workflow show the intended Zurich schedule and should be reviewed if DST alignment matters strictly.
 
 The `github_sync` action is no longer scheduled hourly by default. It remains available for manual recovery runs while webhook ingestion is the primary path.
+
+## GitHub automation controls
+
+- Automatic GitHub idea generation can be disabled per user from the dashboard settings page or with `/githubideas off` in Telegram.
+- When disabled, GitHub events are still ingested but new GitHub ideas are not summarized or created, which avoids additional OpenAI spend.
+- Automatic GitHub idea generation is capped to keep the queue manageable:
+  - total daily cap via `GITHUB_MAX_IDEAS_PER_DAY`
+  - per-repo daily cap via `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
 
 ## Rollback
 
