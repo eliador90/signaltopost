@@ -2,6 +2,9 @@ import { publishDraftNow } from "@/services/posts/publisher";
 import type { Draft } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatDateTime, startOfToday } from "@/lib/time";
+import { sendDraftForReview } from "@/services/telegram/handlers";
+import { ideaPlatformKeyboard } from "@/services/telegram/keyboards";
+import { sendTelegramMessage } from "@/services/telegram/bot";
 
 export async function handleCommand(command: string, chatId: string) {
   switch (command) {
@@ -14,6 +17,8 @@ export async function handleCommand(command: string, chatId: string) {
         "/help",
         "/cancel",
         "/idea",
+        "/nextidea",
+        "/review",
         "/drafts",
         "/schedule",
         "/today",
@@ -52,6 +57,82 @@ export async function handleCommand(command: string, chatId: string) {
     }
     case "/idea":
       return "Send a normal message with your thought, build update, or lesson learned.";
+    case "/nextidea": {
+      const user = await prisma.user.findUnique({
+        where: { telegramChatId: chatId },
+      });
+
+      if (!user) {
+        return "No Telegram user is linked yet. Send a normal message first so I can create your profile.";
+      }
+
+      const idea = await prisma.idea.findFirst({
+        where: {
+          userId: user.id,
+          source: "GITHUB",
+          status: "NEW",
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!idea) {
+        return "No new GitHub ideas are waiting right now.";
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          pendingIdeaId: idea.id,
+          pendingPlatformSelection: null,
+          pendingStylePreset: null,
+          pendingFormatPreset: null,
+          pendingGenerationNote: null,
+          awaitingGenerationNote: false,
+          pendingScheduleDraftId: null,
+          awaitingScheduleInput: false,
+        },
+      });
+
+      await sendTelegramMessage(
+        chatId,
+        [
+          "Next GitHub idea:",
+          "",
+          idea.normalizedContent ?? idea.rawContent,
+          "",
+          `Captured: ${formatDateTime(idea.createdAt, user.timezone)}`,
+          "",
+          "Choose which platform you want a draft for.",
+        ].join("\n"),
+        ideaPlatformKeyboard(idea.id),
+      );
+
+      return null;
+    }
+    case "/review": {
+      const user = await prisma.user.findUnique({
+        where: { telegramChatId: chatId },
+      });
+
+      if (!user) {
+        return "No Telegram user is linked yet. Send a normal message first so I can create your profile.";
+      }
+
+      const draft = await prisma.draft.findFirst({
+        where: {
+          userId: user.id,
+          status: "PENDING_REVIEW",
+        },
+        orderBy: [{ qualityScore: "desc" }, { createdAt: "desc" }],
+      });
+
+      if (!draft) {
+        return "No drafts are waiting for review right now.";
+      }
+
+      await sendDraftForReview(chatId, draft.id);
+      return null;
+    }
     case "/drafts": {
       const drafts: Draft[] = await prisma.draft.findMany({
         where: {
@@ -98,6 +179,8 @@ export async function handleCommand(command: string, chatId: string) {
         `Telegram chat: ${chatId}`,
         "X posts can publish directly if API credentials are configured.",
         "LinkedIn uses manual publish fallback for now.",
+        "Use /nextidea to pull the next GitHub idea into Telegram.",
+        "Use /review to open the next draft waiting for review.",
       ].join("\n");
     }
     case "/schedule":

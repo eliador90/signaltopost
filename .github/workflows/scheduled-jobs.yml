@@ -27,7 +27,7 @@ jobs:
     steps:
       - name: Trigger publish_posts cron route
         run: |
-          curl --fail-with-body --request POST \
+          curl --fail-with-body --location --silent --show-error --request POST \
             --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/publish_posts"
 
@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Trigger github_sync cron route
         run: |
-          curl --fail-with-body --request POST \
+          curl --fail-with-body --location --silent --show-error --request POST \
             --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/github_sync"
 
@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Trigger generate_drafts cron route
         run: |
-          curl --fail-with-body --request POST \
+          curl --fail-with-body --location --silent --show-error --request POST \
             --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/generate_drafts"
 
@@ -57,7 +57,7 @@ jobs:
     steps:
       - name: Trigger morning_digest cron route
         run: |
-          curl --fail-with-body --request POST \
+          curl --fail-with-body --location --silent --show-error --request POST \
             --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/morning_digest"
 
@@ -67,6 +67,6 @@ jobs:
     steps:
       - name: Trigger cleanup cron route
         run: |
-          curl --fail-with-body --request POST \
+          curl --fail-with-body --location --silent --show-error --request POST \
             --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
             "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/cleanup"

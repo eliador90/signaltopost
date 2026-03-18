@@ -6,6 +6,7 @@ import {
   sendIdeaToTelegramAction,
 } from "@/app/actions/dashboard";
 import { prisma } from "@/lib/db";
+import { formatDateTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function IdeasPage({ searchParams }: { searchParams?: Searc
                   <p className="muted">
                     {idea.source} | {idea.user.name ?? idea.user.telegramChatId}
                   </p>
+                  <p className="muted">Created: {formatDateTime(idea.createdAt, idea.user.timezone)}</p>
                 </div>
                 <StatusBadge status={idea.status} />
               </header>
