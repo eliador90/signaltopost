@@ -72,51 +72,66 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
                 <StatusBadge status={draft.status} />
               </header>
               <p>{draft.content}</p>
-              <div className="action-row">
-                {draft.status !== "APPROVED" && draft.status !== "POSTED" ? (
-                  <form action={approveDraftAction}>
-                    <input name="draftId" type="hidden" value={draft.id} />
-                    <input name="redirectPath" type="hidden" value="/drafts" />
-                    <button className="chip" type="submit">
-                      Approve
-                    </button>
-                  </form>
-                ) : null}
-                {draft.status !== "REJECTED" && draft.status !== "POSTED" ? (
-                  <form action={rejectDraftAction}>
-                    <input name="draftId" type="hidden" value={draft.id} />
-                    <input name="redirectPath" type="hidden" value="/drafts" />
-                    <button className="chip danger" type="submit">
-                      Reject
-                    </button>
-                  </form>
-                ) : null}
-                {draft.status !== "POSTED" ? (
-                  <form action={postDraftNowAction}>
-                    <input name="draftId" type="hidden" value={draft.id} />
-                    <input name="redirectPath" type="hidden" value="/drafts" />
-                    <button className="chip" type="submit">
-                      Post now
-                    </button>
-                  </form>
-                ) : null}
-                <form action={sendDraftToTelegramAction}>
-                  <input name="draftId" type="hidden" value={draft.id} />
-                  <input name="redirectPath" type="hidden" value="/drafts" />
-                  <button className="chip" type="submit">
-                    Send to Telegram
-                  </button>
-                </form>
-                {draft.status !== "POSTED" ? (
-                  <form action={scheduleDraftAction}>
-                    <input name="draftId" type="hidden" value={draft.id} />
-                    <input name="redirectPath" type="hidden" value="/drafts" />
-                    <input aria-label="Schedule draft" name="scheduledFor" type="datetime-local" />
-                    <button className="chip" type="submit">
-                      Schedule
-                    </button>
-                  </form>
-                ) : null}
+              <div className="action-groups">
+                <div className="action-group">
+                  <span className="action-label">Decision</span>
+                  <div className="action-row">
+                    {draft.status !== "APPROVED" && draft.status !== "POSTED" ? (
+                      <form action={approveDraftAction}>
+                        <input name="draftId" type="hidden" value={draft.id} />
+                        <input name="redirectPath" type="hidden" value="/drafts" />
+                        <button className="chip" type="submit">
+                          Mark ready
+                        </button>
+                      </form>
+                    ) : null}
+                    {draft.status !== "REJECTED" && draft.status !== "POSTED" ? (
+                      <form action={rejectDraftAction}>
+                        <input name="draftId" type="hidden" value={draft.id} />
+                        <input name="redirectPath" type="hidden" value="/drafts" />
+                        <button className="chip danger" type="submit">
+                          Reject
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="action-group">
+                  <span className="action-label">Publish</span>
+                  <div className="action-row">
+                    {draft.status !== "POSTED" ? (
+                      <form action={postDraftNowAction}>
+                        <input name="draftId" type="hidden" value={draft.id} />
+                        <input name="redirectPath" type="hidden" value="/drafts" />
+                        <button className="chip" type="submit">
+                          Post now
+                        </button>
+                      </form>
+                    ) : null}
+                    {draft.status !== "POSTED" ? (
+                      <form action={scheduleDraftAction}>
+                        <input name="draftId" type="hidden" value={draft.id} />
+                        <input name="redirectPath" type="hidden" value="/drafts" />
+                        <input aria-label="Schedule draft" name="scheduledFor" type="datetime-local" />
+                        <button className="chip" type="submit">
+                          Schedule
+                        </button>
+                      </form>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="action-group">
+                  <span className="action-label">Telegram</span>
+                  <div className="action-row">
+                    <form action={sendDraftToTelegramAction}>
+                      <input name="draftId" type="hidden" value={draft.id} />
+                      <input name="redirectPath" type="hidden" value="/drafts" />
+                      <button className="chip" type="submit">
+                        Review in Telegram
+                      </button>
+                    </form>
+                  </div>
+                </div>
               </div>
             </article>
           ))

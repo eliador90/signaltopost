@@ -243,6 +243,25 @@ select {
   margin-top: 14px;
 }
 
+.action-groups {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.action-group {
+  display: grid;
+  gap: 6px;
+}
+
+.action-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .action-row form {
   display: flex;
   gap: 8px;
