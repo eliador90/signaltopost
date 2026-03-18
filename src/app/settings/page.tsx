@@ -26,6 +26,26 @@ async function updateDefaultPresets(formData: FormData) {
   revalidatePath("/settings");
 }
 
+async function updateGithubIdeaAutomation(formData: FormData) {
+  "use server";
+
+  const userId = String(formData.get("userId") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (!userId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      githubIdeaAutomationEnabled: enabled,
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/");
+}
+
 export default async function SettingsPage() {
   const user = await prisma.user.findFirst();
 
@@ -56,6 +76,37 @@ export default async function SettingsPage() {
         <p className="muted">
           Current stored user: <span className="mono">{user?.telegramChatId ?? "none"}</span>
         </p>
+      </section>
+      <section className="card">
+        <h2>GitHub idea automation</h2>
+        {!user ? (
+          <p className="muted">No Telegram user exists yet. Send one bot message first, then come back here.</p>
+        ) : (
+          <div className="list">
+            <div className="item">
+              <strong>Status</strong>
+              <p className="muted">
+                Automatic GitHub idea generation is currently{" "}
+                <span className="mono">{user.githubIdeaAutomationEnabled ? "enabled" : "disabled"}</span>.
+              </p>
+              <p className="muted">
+                The system creates at most {env.GITHUB_MAX_IDEAS_PER_DAY} GitHub ideas per day and at most{" "}
+                {env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY} per repository per day.
+              </p>
+              <form action={updateGithubIdeaAutomation} className="action-row">
+                <input name="userId" type="hidden" value={user.id} />
+                <input
+                  name="enabled"
+                  type="hidden"
+                  value={user.githubIdeaAutomationEnabled ? "false" : "true"}
+                />
+                <button className="chip" type="submit">
+                  {user.githubIdeaAutomationEnabled ? "Disable automatic GitHub ideas" : "Enable automatic GitHub ideas"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
       </section>
       <section className="card">
         <h2>Default presets</h2>

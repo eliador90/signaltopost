@@ -6,7 +6,7 @@ import { sendDraftForReview } from "@/services/telegram/handlers";
 import { ideaPlatformKeyboard } from "@/services/telegram/keyboards";
 import { sendTelegramMessage } from "@/services/telegram/bot";
 
-export async function handleCommand(command: string, chatId: string) {
+export async function handleCommand(command: string, chatId: string, args = "") {
   switch (command) {
     case "/start":
       return "SignalToPost is active. Send any normal message and I will treat it as a content idea.";
@@ -19,6 +19,7 @@ export async function handleCommand(command: string, chatId: string) {
         "/idea",
         "/nextidea",
         "/review",
+        "/githubideas",
         "/drafts",
         "/schedule",
         "/today",
@@ -29,6 +30,11 @@ export async function handleCommand(command: string, chatId: string) {
         "tomorrow 9",
         "monday 14:30",
         "in 2 hours",
+        "",
+        "GitHub idea automation:",
+        "/githubideas",
+        "/githubideas on",
+        "/githubideas off",
       ].join("\n");
     case "/cancel": {
       const user = await prisma.user.findUnique({
@@ -145,6 +151,34 @@ export async function handleCommand(command: string, chatId: string) {
       await sendDraftForReview(chatId, nextDraft.id);
       return null;
     }
+    case "/githubideas": {
+      const user = await prisma.user.findUnique({
+        where: { telegramChatId: chatId },
+      });
+
+      if (!user) {
+        return "No Telegram user is linked yet. Send a normal message first so I can create your profile.";
+      }
+
+      const normalizedArgs = args.trim().toLowerCase();
+      if (!normalizedArgs) {
+        return `GitHub idea automation is currently ${user.githubIdeaAutomationEnabled ? "ON" : "OFF"}. Use /githubideas on or /githubideas off.`;
+      }
+
+      if (normalizedArgs !== "on" && normalizedArgs !== "off") {
+        return "Use /githubideas on or /githubideas off.";
+      }
+
+      const enabled = normalizedArgs === "on";
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          githubIdeaAutomationEnabled: enabled,
+        },
+      });
+
+      return `GitHub idea automation is now ${enabled ? "ON" : "OFF"}.`;
+    }
     case "/drafts": {
       const drafts: Draft[] = await prisma.draft.findMany({
         where: {
@@ -193,6 +227,7 @@ export async function handleCommand(command: string, chatId: string) {
         "LinkedIn uses manual publish fallback for now.",
         "Use /nextidea to pull the next GitHub idea into Telegram.",
         "Use /review to open the next draft waiting for review.",
+        `GitHub idea automation: ${user?.githubIdeaAutomationEnabled ? "ON" : "OFF"}`,
       ].join("\n");
     }
     case "/schedule":

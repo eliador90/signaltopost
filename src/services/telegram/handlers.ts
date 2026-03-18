@@ -57,7 +57,7 @@ async function handleIncomingMessage(message: TelegramMessage) {
 
   if (isCommand(text)) {
     const parsed = parseCommand(text);
-    const response = await handleCommand(parsed.command, chatId);
+    const response = await handleCommand(parsed.command, chatId, parsed.args);
     if (response) {
       await sendTelegramMessage(chatId, response);
     }

@@ -1,6 +1,7 @@
 import { GithubEventType, IdeaSource } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getConfiguredGithubRepos } from "@/lib/env";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import {
   getGithubClient,
@@ -94,8 +95,37 @@ export async function ingestGithubWebhookEvent(
 }
 
 export async function ingestGithubCandidates(userId: string, candidates: GithubEventCandidate[]) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      timezone: true,
+      githubIdeaAutomationEnabled: true,
+    },
+  });
+
+  if (!user) {
+    return { synced: 0, ideasCreated: 0, reason: "no_user" as const };
+  }
+
   let synced = 0;
   let ideasCreated = 0;
+  const dayStart = startOfTodayForTimezone(user.timezone);
+  const existingIdeaCounts = await prisma.idea.groupBy({
+    by: ["sourceRepoName"],
+    where: {
+      userId,
+      source: IdeaSource.GITHUB,
+      createdAt: { gte: dayStart },
+    },
+    _count: {
+      _all: true,
+    },
+  });
+  let ideasCreatedToday = existingIdeaCounts.reduce((sum, item) => sum + item._count._all, 0);
+  const repoCounts = new Map(
+    existingIdeaCounts.map((item) => [item.sourceRepoName ?? "", item._count._all]),
+  );
 
   for (const candidate of candidates) {
     const existing = await prisma.githubEvent.findUnique({
@@ -121,6 +151,19 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
 
     synced += 1;
 
+    if (!user.githubIdeaAutomationEnabled) {
+      continue;
+    }
+
+    const repoIdeasToday = repoCounts.get(candidate.repoName) ?? 0;
+    if (ideasCreatedToday >= env.GITHUB_MAX_IDEAS_PER_DAY) {
+      continue;
+    }
+
+    if (repoIdeasToday >= env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY) {
+      continue;
+    }
+
     const summary = await summarizeGithubEvent(
       [
         `GitHub activity in ${candidate.repoName}`,
@@ -135,6 +178,7 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
       data: {
         userId,
         source: IdeaSource.GITHUB,
+        sourceRepoName: candidate.repoName,
         rawContent: [candidate.title, candidate.body].filter(Boolean).join("\n\n"),
         normalizedContent: summary,
         status: "NEW",
@@ -147,9 +191,27 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
     });
 
     ideasCreated += 1;
+    ideasCreatedToday += 1;
+    repoCounts.set(candidate.repoName, repoIdeasToday + 1);
   }
 
   return { synced, ideasCreated };
+}
+
+function startOfTodayForTimezone(timeZone: string) {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return new Date(`${year}-${month}-${day}T00:00:00`);
 }
 
 export function buildRepositoryEvent(repoName: string, description: string | null) {

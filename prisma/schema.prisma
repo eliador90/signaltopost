@@ -74,6 +74,7 @@ model User {
   name                        String?
   telegramChatId              String                   @unique
   timezone                    String
+  githubIdeaAutomationEnabled Boolean                  @default(true)
   defaultXStylePreset         String?
   defaultXFormatPreset        String?
   defaultLinkedInStylePreset  String?
@@ -99,6 +100,7 @@ model Idea {
   id                String      @id @default(cuid())
   userId            String
   source            IdeaSource
+  sourceRepoName    String?
   rawContent        String
   normalizedContent String?
   status            IdeaStatus  @default(NEW)
