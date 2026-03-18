@@ -17,6 +17,7 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
   const params = searchParams ? await searchParams : undefined;
   const message = firstParam(params?.message);
   const tone = firstParam(params?.tone);
+  const statusFilter = firstParam(params?.status) ?? "all";
 
   const drafts: Array<
     Draft & {
@@ -27,16 +28,34 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
     take: 50,
     include: { sourceIdea: true },
   });
+  const filteredDrafts = drafts.filter((draft) =>
+    statusFilter === "all" ? true : draft.status === statusFilter,
+  );
 
   return (
     <section className="card">
       <h2>Drafts</h2>
       {message ? <div className={`notice ${tone === "error" ? "error" : "success"}`}>{message}</div> : null}
+      <form className="action-row" method="get">
+        <label className="chip" htmlFor="status">
+          Status
+        </label>
+        <select defaultValue={statusFilter} id="status" name="status">
+          {draftStatusOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button className="chip" type="submit">
+          Apply
+        </button>
+      </form>
       <div className="list">
-        {drafts.length === 0 ? (
-          <div className="empty">No drafts yet.</div>
+        {filteredDrafts.length === 0 ? (
+          <div className="empty">No drafts match the current filter.</div>
         ) : (
-          drafts.map((draft) => (
+          filteredDrafts.map((draft) => (
             <article className="item" key={draft.id}>
               <header>
                 <div>
@@ -110,3 +129,10 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
+
+const draftStatusOptions = [
+  { value: "all", label: "All" },
+  { value: "PENDING_REVIEW", label: "Pending review" },
+  { value: "POSTED", label: "Posted" },
+  { value: "REJECTED", label: "Rejected" },
+];
