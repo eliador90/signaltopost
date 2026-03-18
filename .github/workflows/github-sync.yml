@@ -1,0 +1,16 @@
+name: GitHub Sync
+
+run-name: GitHub Sync
+
+on:
+  workflow_dispatch:
+
+jobs:
+  github_sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger github_sync cron route
+        run: |
+          curl --fail-with-body --location --silent --show-error --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/github_sync"

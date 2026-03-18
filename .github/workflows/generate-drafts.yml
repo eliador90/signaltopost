@@ -1,0 +1,18 @@
+name: Generate Drafts
+
+run-name: Generate Drafts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 * * * *" # every hour after webhook-driven GitHub ingestion
+
+jobs:
+  generate_drafts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger generate_drafts cron route
+        run: |
+          curl --fail-with-body --location --silent --show-error --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/generate_drafts"

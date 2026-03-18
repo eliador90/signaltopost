@@ -1,0 +1,18 @@
+name: Morning Digest
+
+run-name: Morning Digest
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC, review seasonally for Europe/Zurich DST
+
+jobs:
+  morning_digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger morning_digest cron route
+        run: |
+          curl --fail-with-body --location --silent --show-error --request POST \
+            --header "Authorization: Bearer ${{ secrets.SIGNALTOPOST_CRON_SECRET }}" \
+            "${{ secrets.SIGNALTOPOST_BASE_URL }}/api/cron/morning_digest"

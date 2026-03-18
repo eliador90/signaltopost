@@ -140,7 +140,13 @@ https://<your-app>.vercel.app/api/github/webhook
 
 ## GitHub Actions scheduled jobs
 
-The repo includes [.github/workflows/scheduled-jobs.yml](C:\Users\remok\projects\signaltopost\.github\workflows\scheduled-jobs.yml).
+The repo now uses one workflow per concern:
+
+- [.github/workflows/publish-posts.yml](C:\Users\remok\projects\signaltopost\.github\workflows\publish-posts.yml)
+- [.github/workflows/generate-drafts.yml](C:\Users\remok\projects\signaltopost\.github\workflows\generate-drafts.yml)
+- [.github/workflows/morning-digest.yml](C:\Users\remok\projects\signaltopost\.github\workflows\morning-digest.yml)
+- [.github/workflows/cleanup.yml](C:\Users\remok\projects\signaltopost\.github\workflows\cleanup.yml)
+- [.github/workflows/github-sync.yml](C:\Users\remok\projects\signaltopost\.github\workflows\github-sync.yml)
 
 Add these GitHub repository secrets:
 
@@ -150,7 +156,8 @@ Add these GitHub repository secrets:
 Important:
 
 - `SIGNALTOPOST_BASE_URL` should be the stable production URL, for example `https://signaltopost.vercel.app`
-- the workflow uses `curl --location` so Vercel redirects do not silently swallow cron calls
+- each workflow uses `curl --location` so Vercel redirects do not silently swallow cron calls
+- this split keeps the Actions UI readable because each run now has its own workflow name instead of a single generic scheduled-jobs entry
 
 The workflow triggers:
 
