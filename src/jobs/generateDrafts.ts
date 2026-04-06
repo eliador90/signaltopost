@@ -5,13 +5,18 @@ import { rankIdeas } from "@/services/ideas/rank";
 
 export async function runGenerateDraftsJob() {
   const ideas = await prisma.idea.findMany({
-    where: { status: "NEW" },
+    where: {
+      status: "NEW",
+      user: {
+        automationEnabled: true,
+      },
+    } as never,
     include: { user: true },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
 
-  const ranked = rankIdeas(ideas);
+  const ranked = rankIdeas(ideas) as typeof ideas;
 
   for (const idea of ranked) {
     const recentDrafts = await prisma.draft.findMany({

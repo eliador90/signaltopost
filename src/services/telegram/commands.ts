@@ -19,6 +19,7 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         "/idea",
         "/nextidea",
         "/review",
+        "/automation",
         "/githubideas",
         "/drafts",
         "/schedule",
@@ -35,11 +36,16 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         "/githubideas",
         "/githubideas on",
         "/githubideas off",
+        "",
+        "Background automation:",
+        "/automation",
+        "/automation on",
+        "/automation off",
       ].join("\n");
     case "/cancel": {
       const user = await prisma.user.findUnique({
         where: { telegramChatId: chatId },
-      });
+      }) as ({ automationEnabled: boolean } & Awaited<ReturnType<typeof prisma.user.findUnique>>);
 
       if (!user?.pendingIdeaId && !user?.awaitingGenerationNote && !user?.pendingScheduleDraftId && !user?.awaitingScheduleInput) {
         return "No pending generation or scheduling flow to cancel.";
@@ -179,6 +185,36 @@ export async function handleCommand(command: string, chatId: string, args = "") 
 
       return `GitHub idea automation is now ${enabled ? "ON" : "OFF"}.`;
     }
+    case "/automation": {
+      const user = await prisma.user.findUnique({
+        where: { telegramChatId: chatId },
+      });
+
+      if (!user) {
+        return "No Telegram user is linked yet. Send a normal message first so I can create your profile.";
+      }
+
+      const normalizedArgs = args.trim().toLowerCase();
+      if (!normalizedArgs) {
+        return `Background automation is currently ${user.automationEnabled ? "ON" : "OFF"}. Use /automation on or /automation off.`;
+      }
+
+      if (normalizedArgs !== "on" && normalizedArgs !== "off") {
+        return "Use /automation on or /automation off.";
+      }
+
+      const enabled = normalizedArgs === "on";
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          automationEnabled: enabled,
+        },
+      } as never);
+
+      return enabled
+        ? "Background automation is now ON. Morning digests, automatic draft generation, and GitHub idea creation can run again."
+        : "Background automation is now OFF. Morning digests, automatic draft generation, and GitHub idea creation are paused, so no Telegram automation messages or OpenAI usage should happen from those jobs.";
+    }
     case "/drafts": {
       const drafts: Draft[] = await prisma.draft.findMany({
         where: {
@@ -218,7 +254,7 @@ export async function handleCommand(command: string, chatId: string, args = "") 
     case "/settings": {
       const user = await prisma.user.findUnique({
         where: { telegramChatId: chatId },
-      });
+      }) as ({ automationEnabled?: boolean; githubIdeaAutomationEnabled?: boolean } & Awaited<ReturnType<typeof prisma.user.findUnique>>);
 
       return [
         `Timezone: ${user?.timezone ?? "not set"}`,
@@ -227,6 +263,7 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         "LinkedIn uses manual publish fallback for now.",
         "Use /nextidea to pull the next GitHub idea into Telegram.",
         "Use /review to open the next draft waiting for review.",
+        `Background automation: ${user?.automationEnabled ? "ON" : "OFF"}`,
         `GitHub idea automation: ${user?.githubIdeaAutomationEnabled ? "ON" : "OFF"}`,
       ].join("\n");
     }

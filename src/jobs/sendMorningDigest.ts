@@ -11,6 +11,11 @@ export async function runMorningDigestJob() {
     return { sent: false, reason: "no_user" };
   }
 
+  const automationEnabled = (user as typeof user & { automationEnabled?: boolean }).automationEnabled ?? true;
+  if (!automationEnabled) {
+    return { sent: false, reason: "automation_disabled" };
+  }
+
   const generated = await runGenerateDraftsJob();
 
   const drafts: Draft[] = await prisma.draft.findMany({

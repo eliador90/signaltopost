@@ -100,9 +100,15 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
     select: {
       id: true,
       timezone: true,
+      automationEnabled: true,
       githubIdeaAutomationEnabled: true,
     },
-  });
+  }) as {
+    id: string;
+    timezone: string;
+    automationEnabled: boolean;
+    githubIdeaAutomationEnabled: boolean;
+  } | null;
 
   if (!user) {
     return { synced: 0, ideasCreated: 0, reason: "no_user" as const };
@@ -151,7 +157,7 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
 
     synced += 1;
 
-    if (!user.githubIdeaAutomationEnabled) {
+    if (!user.automationEnabled || !user.githubIdeaAutomationEnabled) {
       continue;
     }
 

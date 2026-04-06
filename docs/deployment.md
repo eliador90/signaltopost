@@ -173,6 +173,8 @@ The `github_sync` action is no longer scheduled hourly by default. It remains av
 
 ## GitHub automation controls
 
+- Background automation can be disabled per user from the dashboard settings page or with `/automation off` in Telegram.
+- When background automation is disabled, the app will not send morning digests, will not auto-generate drafts from queued ideas, and will not summarize GitHub activity into ideas. This is the cleanest way to pause the system without removing manual bot access.
 - Automatic GitHub idea generation can be disabled per user from the dashboard settings page or with `/githubideas off` in Telegram.
 - When disabled, GitHub events are still ingested but new GitHub ideas are not summarized or created, which avoids additional OpenAI spend.
 - Automatic GitHub idea generation is capped to keep the queue manageable:

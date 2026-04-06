@@ -65,6 +65,7 @@ Purpose:
 - send back generated drafts
 - process approve, reject, rewrite, immediate publish, and schedule actions
 - expose `/nextidea`, `/review`, and `/githubideas on|off` commands
+- expose `/automation on|off` to pause or resume background automation without turning off manual bot usage
 
 ### AI generation
 
@@ -171,6 +172,7 @@ Current implementation details:
 - GitHub webhooks are the primary ingestion path in hosted environments
 - the `github_sync` cron/job remains available as a manual recovery path
 - respects `githubIdeaAutomationEnabled` at the user level
+- respects `automationEnabled` at the user level so background automation can be paused without removing Telegram access
 - caps automatic GitHub idea generation using `GITHUB_MAX_IDEAS_PER_DAY` and `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
 - enforces the cap before summarization so the OpenAI usage is also reduced
 
@@ -184,6 +186,7 @@ Purpose:
 - generate drafts from new ideas
 - send a compact morning digest into Telegram with top GitHub signals
 - follow the summary with separate Telegram review cards for each recommended draft
+- skip the entire flow when background automation is paused for the user
 
 ### Admin pages
 

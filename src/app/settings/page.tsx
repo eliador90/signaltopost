@@ -46,8 +46,30 @@ async function updateGithubIdeaAutomation(formData: FormData) {
   revalidatePath("/");
 }
 
+async function updateBackgroundAutomation(formData: FormData) {
+  "use server";
+
+  const userId = String(formData.get("userId") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (!userId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      automationEnabled: enabled,
+    },
+  } as never);
+
+  revalidatePath("/settings");
+  revalidatePath("/");
+}
+
 export default async function SettingsPage() {
-  const user = await prisma.user.findFirst();
+  const user = (await prisma.user.findFirst()) as
+    | (Awaited<ReturnType<typeof prisma.user.findFirst>> & { automationEnabled?: boolean })
+    | null;
 
   return (
     <div className="grid">
@@ -78,6 +100,33 @@ export default async function SettingsPage() {
         </p>
       </section>
       <section className="card">
+        <h2>Background automation</h2>
+        {!user ? (
+          <p className="muted">No Telegram user exists yet. Send one bot message first, then come back here.</p>
+        ) : (
+          <div className="list">
+            <div className="item">
+              <strong>Status</strong>
+              <p className="muted">
+                Background automation is currently{" "}
+                <span className="mono">{user.automationEnabled ? "enabled" : "disabled"}</span>.
+              </p>
+              <p className="muted">
+                Disabling this pauses morning Telegram digests, automatic draft generation from queued ideas, and
+                automatic GitHub idea creation. Manual Telegram use stays available.
+              </p>
+              <form action={updateBackgroundAutomation} className="action-row">
+                <input name="userId" type="hidden" value={user.id} />
+                <input name="enabled" type="hidden" value={user.automationEnabled ? "false" : "true"} />
+                <button className="chip" type="submit">
+                  {user.automationEnabled ? "Pause background automation" : "Resume background automation"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </section>
+      <section className="card">
         <h2>GitHub idea automation</h2>
         {!user ? (
           <p className="muted">No Telegram user exists yet. Send one bot message first, then come back here.</p>
@@ -90,7 +139,8 @@ export default async function SettingsPage() {
                 <span className="mono">{user.githubIdeaAutomationEnabled ? "enabled" : "disabled"}</span>.
               </p>
               <p className="muted">
-                The system creates at most {env.GITHUB_MAX_IDEAS_PER_DAY} GitHub ideas per day and at most{" "}
+                This only affects GitHub idea creation while background automation is enabled. The system creates at most{" "}
+                {env.GITHUB_MAX_IDEAS_PER_DAY} GitHub ideas per day and at most{" "}
                 {env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY} per repository per day.
               </p>
               <form action={updateGithubIdeaAutomation} className="action-row">
