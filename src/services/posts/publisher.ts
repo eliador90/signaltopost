@@ -1,5 +1,6 @@
-import { DraftPlatform, PostJobStatus, type Draft, type PostJob, type User } from "@prisma/client";
+import { DraftPlatform, DraftStatus, PostJobStatus, type Draft, type PostJob, type User } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { sendTelegramMessage } from "@/services/telegram/bot";
 import { enqueueImmediatePost } from "@/services/posts/queue";
 import { publishToLinkedIn } from "@/services/posts/linkedin";
@@ -16,65 +17,74 @@ export async function publishPost(job: JobWithRelations) {
     data: { status: PostJobStatus.PROCESSING },
   });
 
-  const result =
-    job.platform === DraftPlatform.X
-      ? await publishToX(job.draft)
-      : await publishToLinkedIn(job.draft);
+  try {
+    const result =
+      job.platform === DraftPlatform.X
+        ? await publishToX(job.draft)
+        : await publishToLinkedIn(job.draft);
 
-  if (result.status === "posted") {
-    await prisma.$transaction([
-      prisma.postJob.update({
+    if (result.status === "posted") {
+      await prisma.$transaction([
+        prisma.postJob.update({
+          where: { id: job.id },
+          data: {
+            status: PostJobStatus.POSTED,
+            externalPostId: result.externalPostId ?? null,
+            failureReason: null,
+          },
+        }),
+        prisma.draft.update({
+          where: { id: job.draftId },
+          data: { status: DraftStatus.POSTED },
+        }),
+      ]);
+
+      await sendTelegramMessageSafely(
+        job.user.telegramChatId,
+        `Posted ${job.platform} draft successfully.${result.externalPostId ? ` Post ID: ${result.externalPostId}` : ""}`,
+      );
+
+      return { status: "posted" as const };
+    }
+
+    if (result.status === "manual_fallback") {
+      await prisma.postJob.update({
         where: { id: job.id },
         data: {
-          status: PostJobStatus.POSTED,
-          externalPostId: result.externalPostId ?? null,
-          failureReason: null,
+          status: PostJobStatus.READY_FOR_MANUAL_POST,
+          failureReason: result.summary,
         },
-      }),
-      prisma.draft.update({
-        where: { id: job.draftId },
-        data: { status: "POSTED" },
-      }),
-    ]);
+      });
 
-    await sendTelegramMessage(
+      await sendTelegramMessageSafely(job.user.telegramChatId, result.summary);
+      await sendTelegramMessageSafely(job.user.telegramChatId, result.postBody);
+      return { status: "manual_fallback" as const };
+    }
+
+    await markJobFailed(job, result.error);
+    await sendTelegramMessageSafely(
       job.user.telegramChatId,
-      `Posted ${job.platform} draft successfully.${result.externalPostId ? ` Post ID: ${result.externalPostId}` : ""}`,
+      `Publishing failed for ${job.platform} draft.\n\n${result.error}`,
     );
+    return { status: "failed" as const, error: result.error };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected publish error";
 
-    return { status: "posted" as const };
-  }
-
-  if (result.status === "manual_fallback") {
-    await prisma.postJob.update({
-      where: { id: job.id },
-      data: {
-        status: PostJobStatus.READY_FOR_MANUAL_POST,
-        failureReason: result.summary,
-      },
+    logger.error("Unhandled exception while publishing scheduled post", {
+      jobId: job.id,
+      draftId: job.draftId,
+      platform: job.platform,
+      error,
     });
 
-    await sendTelegramMessage(job.user.telegramChatId, result.summary);
-    await sendTelegramMessage(job.user.telegramChatId, result.postBody);
-    return { status: "manual_fallback" as const };
+    await markJobFailed(job, message);
+    await sendTelegramMessageSafely(
+      job.user.telegramChatId,
+      `Publishing failed for ${job.platform} draft.\n\n${message}`,
+    );
+
+    return { status: "failed" as const, error: message };
   }
-
-  await prisma.$transaction([
-    prisma.postJob.update({
-      where: { id: job.id },
-      data: {
-        status: PostJobStatus.FAILED,
-        failureReason: result.error,
-      },
-    }),
-    prisma.draft.update({
-      where: { id: job.draftId },
-      data: { status: "FAILED" },
-    }),
-  ]);
-
-  await sendTelegramMessage(job.user.telegramChatId, `Publishing failed for ${job.platform} draft.\n\n${result.error}`);
-  return { status: "failed" as const, error: result.error };
 }
 
 export async function publishDraftNow(draftId: string) {
@@ -102,4 +112,31 @@ export async function publishDraftNow(draftId: string) {
   }
 
   return publishPost(jobWithRelations);
+}
+
+async function markJobFailed(job: JobWithRelations, reason: string) {
+  await prisma.$transaction([
+    prisma.postJob.update({
+      where: { id: job.id },
+      data: {
+        status: PostJobStatus.FAILED,
+        failureReason: reason,
+      },
+    }),
+    prisma.draft.update({
+      where: { id: job.draftId },
+      data: { status: DraftStatus.FAILED },
+    }),
+  ]);
+}
+
+async function sendTelegramMessageSafely(chatId: string, text: string) {
+  try {
+    await sendTelegramMessage(chatId, text);
+  } catch (error) {
+    logger.error("Failed to send Telegram notification for publish job", {
+      chatId,
+      error,
+    });
+  }
 }

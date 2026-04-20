@@ -1,5 +1,6 @@
 import { PostJobStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { publishPost } from "@/services/posts/publisher";
 
 export async function runPublishScheduledJob() {
@@ -21,12 +22,25 @@ export async function runPublishScheduledJob() {
   let posted = 0;
   let manualFallbacks = 0;
   let failed = 0;
+  const errors: Array<{ jobId: string; error: string }> = [];
 
   for (const job of dueJobs) {
-    const result = await publishPost(job);
-    if (result.status === "posted") posted += 1;
-    if (result.status === "manual_fallback") manualFallbacks += 1;
-    if (result.status === "failed") failed += 1;
+    try {
+      const result = await publishPost(job);
+      if (result.status === "posted") posted += 1;
+      if (result.status === "manual_fallback") manualFallbacks += 1;
+      if (result.status === "failed") failed += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unexpected scheduled publish error";
+      failed += 1;
+      errors.push({ jobId: job.id, error: message });
+
+      logger.error("Scheduled publish job crashed unexpectedly", {
+        jobId: job.id,
+        draftId: job.draftId,
+        error,
+      });
+    }
   }
 
   return {
@@ -35,5 +49,6 @@ export async function runPublishScheduledJob() {
     posted,
     manualFallbacks,
     failed,
+    errors,
   };
 }
