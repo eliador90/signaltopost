@@ -122,8 +122,8 @@ export default async function SettingsPage() {
                 <span className="mono">{user.automationEnabled ? "proactive" : "on-demand"}</span> mode.
               </p>
               <p className="muted">
-                On-demand mode pauses morning digests, automatic draft generation from queued ideas, GitHub idea
-                automation, and configured GitHub webhooks. Manual Telegram use stays available.
+                This is the master switch. On-demand mode pauses scheduled/background work and configured GitHub
+                webhooks. Manual Telegram requests still work.
               </p>
               <form action={updateBackgroundAutomation} className="action-row">
                 <input name="userId" type="hidden" value={user.id} />
@@ -145,11 +145,19 @@ export default async function SettingsPage() {
             <div className="item">
               <strong>Status</strong>
               <p className="muted">
-                Automatic GitHub idea generation is currently{" "}
-                <span className="mono">{user.githubIdeaAutomationEnabled ? "enabled" : "disabled"}</span>.
+                Automatic GitHub idea generation is{" "}
+                <span className="mono">
+                  {user.automationEnabled
+                    ? user.githubIdeaAutomationEnabled
+                      ? "enabled"
+                      : "disabled"
+                    : "inactive in on-demand mode"}
+                </span>
+                .
               </p>
               <p className="muted">
-                This only affects GitHub idea creation while background automation is enabled. The system creates at most{" "}
+                This only matters while Operating mode is proactive. It controls whether incoming GitHub activity becomes
+                queued content ideas automatically. The system creates at most{" "}
                 {env.GITHUB_MAX_IDEAS_PER_DAY} GitHub ideas per day and at most{" "}
                 {env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY} per repository per day.
               </p>
@@ -161,7 +169,7 @@ export default async function SettingsPage() {
                   value={user.githubIdeaAutomationEnabled ? "false" : "true"}
                 />
                 <button className="chip" type="submit">
-                  {user.githubIdeaAutomationEnabled ? "Disable automatic GitHub ideas" : "Enable automatic GitHub ideas"}
+                  {user.githubIdeaAutomationEnabled ? "Disable GitHub ideas" : "Enable GitHub ideas"}
                 </button>
               </form>
             </div>

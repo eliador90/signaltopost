@@ -169,6 +169,20 @@ select {
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.item > strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.item select,
+.item input,
+.item textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .item header {
