@@ -116,14 +116,18 @@ export default async function SettingsPage() {
         ) : (
           <div className="list">
             <div className="item">
-              <strong>Status</strong>
+              <strong>Master switch</strong>
               <p className="muted">
                 SignalToPost is currently in{" "}
                 <span className="mono">{user.automationEnabled ? "proactive" : "on-demand"}</span> mode.
               </p>
               <p className="muted">
-                This is the master switch. On-demand mode pauses scheduled/background work and configured GitHub
-                webhooks. Manual Telegram requests still work.
+                On-demand mode means nothing runs by itself: no morning digest, no automatic draft generation, and no
+                GitHub webhook wakeups. Use Telegram when you explicitly want GitHub activity or a social post.
+              </p>
+              <p className="muted">
+                Proactive mode allows background automation again. The GitHub idea automation setting below then decides
+                whether GitHub activity should become ideas automatically.
               </p>
               <form action={updateBackgroundAutomation} className="action-row">
                 <input name="userId" type="hidden" value={user.id} />
@@ -143,7 +147,7 @@ export default async function SettingsPage() {
         ) : (
           <div className="list">
             <div className="item">
-              <strong>Status</strong>
+              <strong>Proactive-mode sub-setting</strong>
               <p className="muted">
                 Automatic GitHub idea generation is{" "}
                 <span className="mono">
@@ -156,8 +160,11 @@ export default async function SettingsPage() {
                 .
               </p>
               <p className="muted">
-                This only matters while Operating mode is proactive. It controls whether incoming GitHub activity becomes
-                queued content ideas automatically. The system creates at most{" "}
+                This setting does nothing while Operating mode is on-demand. When proactive mode is on, it controls
+                whether incoming GitHub activity becomes queued content ideas automatically.
+              </p>
+              <p className="muted">
+                In proactive mode, the system creates at most{" "}
                 {env.GITHUB_MAX_IDEAS_PER_DAY} GitHub ideas per day and at most{" "}
                 {env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY} per repository per day.
               </p>
