@@ -2,6 +2,7 @@ import { publishDraftNow } from "@/services/posts/publisher";
 import type { Draft } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { formatDateTime, startOfToday } from "@/lib/time";
+import { syncConfiguredGithubWebhooks } from "@/services/github/webhooks";
 import { sendDraftForReview } from "@/services/telegram/handlers";
 import { ideaPlatformKeyboard } from "@/services/telegram/keyboards";
 import { sendTelegramMessage } from "@/services/telegram/bot";
@@ -27,6 +28,11 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         "/settings",
         "/postnow",
         "",
+        "On-demand GitHub examples:",
+        "GitHub activity yesterday",
+        "social media post from GitHub for last 7 days",
+        "draft from GitHub activity on 2026-05-06",
+        "",
         "Scheduling examples:",
         "tomorrow 9",
         "monday 14:30",
@@ -37,7 +43,7 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         "/githubideas on",
         "/githubideas off",
         "",
-        "Background automation:",
+        "Operating mode:",
         "/automation",
         "/automation on",
         "/automation off",
@@ -211,9 +217,19 @@ export async function handleCommand(command: string, chatId: string, args = "") 
         },
       } as never);
 
+      const webhookSync = await syncConfiguredGithubWebhooks(enabled);
+      const webhookMessage =
+        webhookSync.errors.length > 0
+          ? ` GitHub webhook sync had ${webhookSync.errors.length} error${
+              webhookSync.errors.length === 1 ? "" : "s"
+            }; check the app logs and GitHub token permissions.`
+          : ` GitHub webhooks ${enabled ? "enabled" : "disabled"} for ${webhookSync.updated} hook${
+              webhookSync.updated === 1 ? "" : "s"
+            }.`;
+
       return enabled
-        ? "Background automation is now ON. Morning digests, automatic draft generation, and GitHub idea creation can run again."
-        : "Background automation is now OFF. Morning digests, automatic draft generation, and GitHub idea creation are paused, so no Telegram automation messages or OpenAI usage should happen from those jobs.";
+        ? `Background automation is now ON. Morning digests, automatic draft generation, and GitHub idea creation can run again.${webhookMessage}`
+        : `Background automation is now OFF. Morning digests, automatic draft generation, and GitHub idea creation are paused.${webhookMessage}`;
     }
     case "/drafts": {
       const drafts: Draft[] = await prisma.draft.findMany({

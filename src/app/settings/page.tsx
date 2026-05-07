@@ -1,7 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { formatPresets, stylePresets } from "@/services/ai/presets";
+import { syncConfiguredGithubWebhooks } from "@/services/github/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +64,14 @@ async function updateBackgroundAutomation(formData: FormData) {
     },
   } as never);
 
+  const webhookSync = await syncConfiguredGithubWebhooks(enabled);
+  if (webhookSync.errors.length > 0) {
+    logger.warn("Background automation changed but GitHub webhook sync had errors", {
+      enabled,
+      errors: webhookSync.errors,
+    });
+  }
+
   revalidatePath("/settings");
   revalidatePath("/");
 }
@@ -100,7 +110,7 @@ export default async function SettingsPage() {
         </p>
       </section>
       <section className="card">
-        <h2>Background automation</h2>
+        <h2>Operating mode</h2>
         {!user ? (
           <p className="muted">No Telegram user exists yet. Send one bot message first, then come back here.</p>
         ) : (
@@ -108,18 +118,18 @@ export default async function SettingsPage() {
             <div className="item">
               <strong>Status</strong>
               <p className="muted">
-                Background automation is currently{" "}
-                <span className="mono">{user.automationEnabled ? "enabled" : "disabled"}</span>.
+                SignalToPost is currently in{" "}
+                <span className="mono">{user.automationEnabled ? "proactive" : "on-demand"}</span> mode.
               </p>
               <p className="muted">
-                Disabling this pauses morning Telegram digests, automatic draft generation from queued ideas, and
-                automatic GitHub idea creation. Manual Telegram use stays available.
+                On-demand mode pauses morning digests, automatic draft generation from queued ideas, GitHub idea
+                automation, and configured GitHub webhooks. Manual Telegram use stays available.
               </p>
               <form action={updateBackgroundAutomation} className="action-row">
                 <input name="userId" type="hidden" value={user.id} />
                 <input name="enabled" type="hidden" value={user.automationEnabled ? "false" : "true"} />
                 <button className="chip" type="submit">
-                  {user.automationEnabled ? "Pause background automation" : "Resume background automation"}
+                  {user.automationEnabled ? "Switch to on-demand" : "Switch to proactive"}
                 </button>
               </form>
             </div>

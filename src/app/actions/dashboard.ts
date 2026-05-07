@@ -239,7 +239,11 @@ export async function scheduleDraftAction(formData: FormData) {
   });
 
   revalidateDashboardPaths();
-  redirectWithMessage(redirectPath, `Scheduled for ${scheduled.label}.`, "success");
+  redirectWithMessage(
+    redirectPath,
+    `Saved for ${scheduled.label}. Automatic publish polling is off; publish manually when ready.`,
+    "success",
+  );
 }
 
 export async function cancelScheduleAction(formData: FormData) {

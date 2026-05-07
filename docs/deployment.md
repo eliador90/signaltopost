@@ -23,7 +23,7 @@ Recommended stack:
 
 1. Vercel for the Next.js app and API routes.
 2. Neon Postgres for the database.
-3. GitHub Actions for scheduled jobs.
+3. GitHub Actions for manually dispatched maintenance jobs.
 4. Telegram webhook pointed at the Vercel production URL.
 5. GitHub webhook pointed at the production `/api/github/webhook` route for primary repo ingestion.
 
@@ -32,7 +32,7 @@ Recommended stack:
 - Vercel serves the app and all API routes.
 - Telegram delivers webhook updates to `/api/telegram`.
 - Neon stores users, ideas, drafts, jobs, GitHub events, and feedback.
-- GitHub Actions calls protected cron routes on a schedule.
+- GitHub Actions can call protected cron routes manually.
 - GitHub webhooks deliver repository events to `/api/github/webhook`.
 - Local scheduler remains available for development only when `ENABLE_LOCAL_SCHEDULER=true`.
 
@@ -136,11 +136,11 @@ https://<your-app>.vercel.app/api/github/webhook
    - issues
    - releases
    - repository
-5. Use the hourly `github_sync` workflow only as a manual recovery path if webhook delivery is missed.
+5. Use the `github_sync` workflow only as a manual recovery path if webhook delivery is missed.
 
-## GitHub Actions scheduled jobs
+## GitHub Actions manual jobs
 
-The repo now uses one workflow per concern:
+The repo now uses one manually dispatched workflow per concern:
 
 - [.github/workflows/publish-posts.yml](C:\Users\remok\projects\signaltopost\.github\workflows\publish-posts.yml)
 - [.github/workflows/generate-drafts.yml](C:\Users\remok\projects\signaltopost\.github\workflows\generate-drafts.yml)
@@ -159,7 +159,7 @@ Important:
 - each workflow uses `curl --location` so Vercel redirects do not silently swallow cron calls
 - this split keeps the Actions UI readable because each run now has its own workflow name instead of a single generic scheduled-jobs entry
 
-The workflow triggers:
+The workflows call:
 
 - `/api/cron/publish_posts`
 - `/api/cron/github_sync`
@@ -167,14 +167,12 @@ The workflow triggers:
 - `/api/cron/morning_digest`
 - `/api/cron/cleanup`
 
-GitHub Actions cron uses UTC. The comments in the workflow show the intended Zurich schedule and should be reviewed if DST alignment matters strictly.
-
-The `github_sync` action is no longer scheduled hourly by default. It remains available for manual recovery runs while webhook ingestion is the primary path.
+These workflows no longer have `schedule` triggers. They remain available for manual recovery or maintenance runs without waking Vercel and Neon on a timer.
 
 ## GitHub automation controls
 
-- Background automation can be disabled per user from the dashboard settings page or with `/automation off` in Telegram.
-- When background automation is disabled, the app will not send morning digests, will not auto-generate drafts from queued ideas, and will not summarize GitHub activity into ideas. This is the cleanest way to pause the system without removing manual bot access.
+- Proactive mode can be disabled per user from the dashboard settings page or with `/automation off` in Telegram.
+- When proactive mode is disabled, the app will not send morning digests, will not auto-generate drafts from queued ideas, and will attempt to disable configured GitHub webhooks. Manual Telegram use stays available.
 - Automatic GitHub idea generation can be disabled per user from the dashboard settings page or with `/githubideas off` in Telegram.
 - When disabled, GitHub events are still ingested but new GitHub ideas are not summarized or created, which avoids additional OpenAI spend.
 - Automatic GitHub idea generation is capped to keep the queue manageable:

@@ -126,8 +126,8 @@ Current implementation details:
 - LinkedIn is manual fallback only
 - Telegram receives the publish result or manual instructions
 - `/postnow` and the `Post now` button create an immediate post job and run it through the same publisher pipeline
-- local development can also run a lightweight in-process publish scheduler when enabled via env vars
-- hosted deployments should use the protected cron routes via separate GitHub Actions workflows instead of the local scheduler
+- local development can also run a lightweight in-process publish scheduler when explicitly enabled via env vars
+- hosted deployments keep the protected cron routes available for manual dispatch, but no longer poll them on a schedule by default
 
 ### Preset defaults
 
@@ -169,8 +169,9 @@ Purpose:
 Current implementation details:
 - reads repositories from `GITHUB_REPOS`
 - assumes a single owner from `GITHUB_USERNAME`
-- GitHub webhooks are the primary ingestion path in hosted environments
-- the `github_sync` cron/job remains available as a manual recovery path
+- GitHub webhooks are the primary proactive ingestion path in hosted environments
+- the `github_sync` job remains available as a manual recovery path
+- on-demand Telegram prompts can fetch GitHub activity for requested days or ranges without relying on proactive webhook ingestion
 - respects `githubIdeaAutomationEnabled` at the user level
 - respects `automationEnabled` at the user level so background automation can be paused without removing Telegram access
 - caps automatic GitHub idea generation using `GITHUB_MAX_IDEAS_PER_DAY` and `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`

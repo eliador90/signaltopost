@@ -5,6 +5,12 @@ import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services
 import { getFormatPreset, getStylePreset } from "@/services/ai/presets";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
 import { createIdea } from "@/services/ideas/create";
+import {
+  createGithubIdeasForRange,
+  getDefaultOnDemandPlatforms,
+  parseGithubOnDemandRequest,
+  type GithubOnDemandRequest,
+} from "@/services/github/onDemand";
 import { formatDateTime, parseNaturalLanguageSchedule } from "@/lib/time";
 import { publishDraftNow } from "@/services/posts/publisher";
 import { schedulePost, schedulePostForDateTime, type SchedulePreset } from "@/services/posts/scheduler";
@@ -113,8 +119,14 @@ async function handleIncomingMessage(message: TelegramMessage) {
     await clearPendingSchedule(user.id);
     await sendTelegramMessage(
       chatId,
-      `Scheduled ${draft.platform} draft for ${scheduled.label}. It will publish when due or fall back to manual delivery if direct posting is unavailable.`,
+      `Saved ${draft.platform} draft for ${scheduled.label}. Automatic publish polling is off now; use /postnow when you want to publish it.`,
     );
+    return;
+  }
+
+  const githubRequest = parseGithubOnDemandRequest(text, user.timezone);
+  if (githubRequest) {
+    await handleGithubOnDemandRequest(user, chatId, githubRequest);
     return;
   }
 
@@ -144,6 +156,92 @@ async function handleIncomingMessage(message: TelegramMessage) {
     "Idea saved. Which platform do you want a draft for?",
     ideaPlatformKeyboard(idea.id),
   );
+}
+
+async function handleGithubOnDemandRequest(
+  user: Awaited<ReturnType<typeof prisma.user.upsert>>,
+  chatId: string,
+  request: GithubOnDemandRequest,
+) {
+  await sendTelegramMessage(chatId, `Fetching GitHub activity for ${request.label}.`);
+
+  const result = await createGithubIdeasForRange(user, request);
+  if (result.candidates === 0) {
+    await sendTelegramMessage(chatId, `I did not find GitHub activity for ${request.label}.`);
+    return;
+  }
+
+  if (result.ideasCreated === 0 || result.ideas.length === 0) {
+    await sendTelegramMessage(
+      chatId,
+      `I found ${result.candidates} GitHub event${result.candidates === 1 ? "" : "s"} for ${
+        request.label
+      }, but they were already processed.`,
+    );
+    return;
+  }
+
+  if (request.intent === "draft") {
+    const idea = result.ideas[0];
+    await sendTelegramMessage(
+      chatId,
+      `Created ${result.ideasCreated} GitHub idea${result.ideasCreated === 1 ? "" : "s"} for ${
+        request.label
+      }. Generating X and LinkedIn drafts from the strongest one now.`,
+    );
+
+    const drafts = await generateDraftsForPlatforms(getDefaultOnDemandPlatforms(), buildDraftSourceFromIdea(idea), {
+      user: idea.user,
+    });
+
+    for (const draft of drafts) {
+      const storedDraft = await prisma.draft.create({
+        data: {
+          userId: idea.userId,
+          platform: draft.platform,
+          content: draft.content,
+          sourceIdeaId: idea.id,
+          status: "PENDING_REVIEW",
+          qualityScore: draft.qualityScore,
+          stylePreset: draft.stylePreset,
+          formatPreset: draft.formatPreset,
+          generationNote: draft.generationNote,
+        },
+      });
+
+      await sendDraftForReview(chatId, storedDraft.id);
+    }
+
+    await prisma.idea.update({
+      where: { id: idea.id },
+      data: {
+        status: "PROCESSED",
+        processedAt: new Date(),
+      },
+    });
+    return;
+  }
+
+  await sendTelegramMessage(
+    chatId,
+    `Created ${result.ideasCreated} GitHub idea${result.ideasCreated === 1 ? "" : "s"} for ${
+      request.label
+    }. Pick one below when you want a draft.`,
+  );
+
+  for (const idea of result.ideas.slice(0, 5)) {
+    await sendTelegramMessage(
+      chatId,
+      [
+        "GitHub idea:",
+        "",
+        idea.normalizedContent ?? idea.rawContent,
+        "",
+        `Captured: ${formatDateTime(idea.createdAt, user.timezone)}`,
+      ].join("\n"),
+      ideaPlatformKeyboard(idea.id),
+    );
+  }
 }
 
 async function handleCallback(callbackQuery: TelegramCallbackQuery) {
@@ -257,7 +355,7 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       await answerCallbackQuery(callbackQuery.id, "Draft scheduled");
       await sendTelegramMessage(
         chatId,
-        `Scheduled ${draft.platform} draft for ${scheduled.label}. It will publish when due or fall back to manual delivery if direct posting is unavailable.`,
+        `Saved ${draft.platform} draft for ${scheduled.label}. Automatic publish polling is off now; use /postnow when you want to publish it.`,
       );
       return;
     }

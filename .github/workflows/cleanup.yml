@@ -4,8 +4,6 @@ run-name: Cleanup
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 2 * * *" # 02:00 UTC, review seasonally for Europe/Zurich DST
 
 jobs:
   cleanup:

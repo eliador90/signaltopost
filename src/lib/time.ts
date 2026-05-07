@@ -320,7 +320,7 @@ function nextRoundedTime(now: Date, timeZone: string) {
   return { hour, minute };
 }
 
-function zonedDateTimeToUtc(
+export function zonedDateTimeToUtc(
   input: {
     year: number;
     month: number;

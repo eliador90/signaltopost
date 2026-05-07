@@ -4,8 +4,6 @@ run-name: Generate Drafts
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "5 * * * *" # every hour after webhook-driven GitHub ingestion
 
 jobs:
   generate_drafts:

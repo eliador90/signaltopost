@@ -27,6 +27,11 @@ export type GithubEventCandidate = {
   fingerprint: string;
 };
 
+type IngestGithubCandidateOptions = {
+  forceIdeaCreation?: boolean;
+  enforceDailyCaps?: boolean;
+};
+
 export async function ingestGithubEvents() {
   const user = await prisma.user.findFirst();
   const repos = getConfiguredGithubRepos();
@@ -94,7 +99,11 @@ export async function ingestGithubWebhookEvent(
   return { ...result, repoName };
 }
 
-export async function ingestGithubCandidates(userId: string, candidates: GithubEventCandidate[]) {
+export async function ingestGithubCandidates(
+  userId: string,
+  candidates: GithubEventCandidate[],
+  options: IngestGithubCandidateOptions = {},
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -111,11 +120,12 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
   } | null;
 
   if (!user) {
-    return { synced: 0, ideasCreated: 0, reason: "no_user" as const };
+    return { synced: 0, ideasCreated: 0, createdIdeaIds: [], reason: "no_user" as const };
   }
 
   let synced = 0;
   let ideasCreated = 0;
+  const createdIdeaIds: string[] = [];
   const dayStart = startOfTodayForTimezone(user.timezone);
   const existingIdeaCounts = await prisma.idea.groupBy({
     by: ["sourceRepoName"],
@@ -138,35 +148,39 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
       where: { fingerprint: candidate.fingerprint },
     });
 
-    if (existing) {
+    if (existing?.processed || (existing && !options.forceIdeaCreation)) {
       continue;
     }
 
-    const savedEvent = await prisma.githubEvent.create({
-      data: {
-        userId,
-        repoName: candidate.repoName,
-        eventType: candidate.eventType,
-        title: candidate.title,
-        body: candidate.body,
-        eventTimestamp: candidate.eventTimestamp,
-        fingerprint: candidate.fingerprint,
-        processed: false,
-      },
-    });
+    const savedEvent =
+      existing ??
+      (await prisma.githubEvent.create({
+        data: {
+          userId,
+          repoName: candidate.repoName,
+          eventType: candidate.eventType,
+          title: candidate.title,
+          body: candidate.body,
+          eventTimestamp: candidate.eventTimestamp,
+          fingerprint: candidate.fingerprint,
+          processed: false,
+        },
+      }));
 
-    synced += 1;
+    if (!existing) {
+      synced += 1;
+    }
 
-    if (!user.automationEnabled || !user.githubIdeaAutomationEnabled) {
+    if (!options.forceIdeaCreation && (!user.automationEnabled || !user.githubIdeaAutomationEnabled)) {
       continue;
     }
 
     const repoIdeasToday = repoCounts.get(candidate.repoName) ?? 0;
-    if (ideasCreatedToday >= env.GITHUB_MAX_IDEAS_PER_DAY) {
+    if ((options.enforceDailyCaps ?? true) && ideasCreatedToday >= env.GITHUB_MAX_IDEAS_PER_DAY) {
       continue;
     }
 
-    if (repoIdeasToday >= env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY) {
+    if ((options.enforceDailyCaps ?? true) && repoIdeasToday >= env.GITHUB_MAX_IDEAS_PER_REPO_PER_DAY) {
       continue;
     }
 
@@ -180,7 +194,7 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
         .join("\n\n"),
     );
 
-    await prisma.idea.create({
+    const idea = await prisma.idea.create({
       data: {
         userId,
         source: IdeaSource.GITHUB,
@@ -190,6 +204,7 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
         status: "NEW",
       },
     });
+    createdIdeaIds.push(idea.id);
 
     await prisma.githubEvent.update({
       where: { id: savedEvent.id },
@@ -201,7 +216,7 @@ export async function ingestGithubCandidates(userId: string, candidates: GithubE
     repoCounts.set(candidate.repoName, repoIdeasToday + 1);
   }
 
-  return { synced, ideasCreated };
+  return { synced, ideasCreated, createdIdeaIds };
 }
 
 function startOfTodayForTimezone(timeZone: string) {
