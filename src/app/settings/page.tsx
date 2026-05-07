@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { aiModelOptions, resolveAiModel } from "@/services/ai/models";
 import { formatPresets, stylePresets } from "@/services/ai/presets";
 import { syncConfiguredGithubWebhooks } from "@/services/github/webhooks";
 
@@ -22,6 +23,25 @@ async function updateDefaultPresets(formData: FormData) {
       defaultXFormatPreset: nullableValue(formData.get("defaultXFormatPreset")),
       defaultLinkedInStylePreset: nullableValue(formData.get("defaultLinkedInStylePreset")),
       defaultLinkedInFormatPreset: nullableValue(formData.get("defaultLinkedInFormatPreset")),
+    },
+  });
+
+  revalidatePath("/settings");
+}
+
+async function updateAiModel(formData: FormData) {
+  "use server";
+
+  const userId = String(formData.get("userId") ?? "");
+  const model = nullableValue(formData.get("openAiModel"));
+  if (!userId) {
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      openAiModel: model,
     },
   });
 
@@ -96,7 +116,7 @@ export default async function SettingsPage() {
           </div>
           <div className="item">
             <strong>OpenAI model</strong>
-            <p className="muted mono">{env.OPENAI_MODEL}</p>
+            <p className="muted mono">{user ? resolveAiModel(user.openAiModel) : env.OPENAI_MODEL}</p>
           </div>
         </div>
       </section>
@@ -181,6 +201,34 @@ export default async function SettingsPage() {
               </form>
             </div>
           </div>
+        )}
+      </section>
+      <section className="card">
+        <h2>Model</h2>
+        {!user ? (
+          <p className="muted">No Telegram user exists yet. Send one bot message first, then come back here.</p>
+        ) : (
+          <form action={updateAiModel} className="list">
+            <input name="userId" type="hidden" value={user.id} />
+            <label className="item">
+              <strong>Generation model</strong>
+              <p className="muted">
+                This model is used for idea cleanup, GitHub summaries, draft generation, and rewrites. Leave it on the
+                environment default to use <span className="mono">{env.OPENAI_MODEL}</span>.
+              </p>
+              <select defaultValue={user.openAiModel ?? ""} name="openAiModel">
+                <option value="">Use environment default ({env.OPENAI_MODEL})</option>
+                {aiModelOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label} - {option.description}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="chip" type="submit">
+              Save model
+            </button>
+          </form>
         )}
       </section>
       <section className="card">

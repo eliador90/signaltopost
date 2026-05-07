@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { resolveAiModel } from "@/services/ai/models";
 
 let cachedClient: OpenAI | null = null;
 
@@ -13,8 +14,9 @@ function getClient() {
   return cachedClient;
 }
 
-export async function generateText(prompt: string) {
+export async function generateText(prompt: string, model?: string | null) {
   const client = getClient();
+  const resolvedModel = resolveAiModel(model);
 
   if (!client) {
     logger.warn("OPENAI_API_KEY missing, using fallback generation");
@@ -23,7 +25,7 @@ export async function generateText(prompt: string) {
 
   try {
     const response = await client.responses.create({
-      model: env.OPENAI_MODEL,
+      model: resolvedModel,
       input: prompt,
     });
 
@@ -31,7 +33,7 @@ export async function generateText(prompt: string) {
   } catch (error) {
     logger.warn("OpenAI request failed, using fallback generation", {
       error,
-      model: env.OPENAI_MODEL,
+      model: resolvedModel,
     });
     return null;
   }

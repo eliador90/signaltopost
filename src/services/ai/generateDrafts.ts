@@ -12,7 +12,11 @@ import { scoreDraft } from "@/services/ai/scoreDraft";
 type GenerationContext = {
   user?: Pick<
     User,
-    "defaultXStylePreset" | "defaultXFormatPreset" | "defaultLinkedInStylePreset" | "defaultLinkedInFormatPreset"
+    | "defaultXStylePreset"
+    | "defaultXFormatPreset"
+    | "defaultLinkedInStylePreset"
+    | "defaultLinkedInFormatPreset"
+    | "openAiModel"
   > | null;
   preferences?: GenerationPreferenceOverrides;
 };
@@ -33,7 +37,7 @@ export async function generatePlatformDraft(platform: DraftPlatform, source: str
       ? buildXDraftPrompt(source, resolvedPreferences)
       : buildLinkedInDraftPrompt(source, resolvedPreferences);
 
-  const generated = await generateText(prompt);
+  const generated = await generateText(prompt, context?.user?.openAiModel);
   const content = generated || fallbackDraft(source, platform);
   const qualityScore = scoreDraft(content, platform === DraftPlatform.X ? "x" : "linkedin");
 

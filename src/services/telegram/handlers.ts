@@ -130,7 +130,7 @@ async function handleIncomingMessage(message: TelegramMessage) {
     return;
   }
 
-  const normalizedContent = await normalizeIdea(text);
+  const normalizedContent = await normalizeIdea(text, user.openAiModel);
   const idea = await createIdea({
     user,
     rawContent: text,
@@ -519,7 +519,7 @@ async function rewriteAndResendDraft(
   direction: string,
   action: FeedbackAction,
 ) {
-  const draft = await prisma.draft.findUnique({ where: { id: draftId } });
+  const draft = await prisma.draft.findUnique({ where: { id: draftId }, include: { user: true } });
   if (!draft) return;
 
   const rewritten = await rewriteDraft(draft, direction);

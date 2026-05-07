@@ -2,7 +2,11 @@ import type { Draft } from "@prisma/client";
 import { generateText } from "@/services/ai/client";
 import { buildRewritePrompt } from "@/services/ai/prompts/rewrite";
 
-type RewriteInput = Pick<Draft, "content" | "platform" | "stylePreset" | "formatPreset" | "generationNote">;
+type RewriteInput = Pick<Draft, "content" | "platform" | "stylePreset" | "formatPreset" | "generationNote"> & {
+  user?: {
+    openAiModel?: string | null;
+  } | null;
+};
 
 export async function rewriteDraft(draft: RewriteInput, direction: string) {
   const rewritten = await generateText(
@@ -12,6 +16,7 @@ export async function rewriteDraft(draft: RewriteInput, direction: string) {
       formatPreset: draft.formatPreset,
       generationNote: draft.generationNote,
     }),
+    draft.user?.openAiModel,
   );
   return rewritten || fallbackRewrite(draft.content, direction);
 }

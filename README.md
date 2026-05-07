@@ -38,9 +38,10 @@ Current implementation covers:
 17. LinkedIn manual publish fallback delivered through Telegram.
 18. Immediate publish from Telegram via the `Post now` button or `/postnow`.
 19. Pre-generation style and format presets with saved per-platform defaults.
-20. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
-21. Hosted deployment path for Vercel + Neon + manually dispatched GitHub Actions jobs.
-22. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
+20. Dashboard model switcher with `OPENAI_MODEL` as the deployment fallback.
+21. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
+22. Hosted deployment path for Vercel + Neon + manually dispatched GitHub Actions jobs.
+23. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
 
 ## Local setup
 
@@ -122,7 +123,7 @@ Telegram:
 OpenAI:
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL`
+- `OPENAI_MODEL` as the fallback when no dashboard model override is saved
 
 GitHub:
 

@@ -133,11 +133,13 @@ Current implementation details:
 
 Files:
 - [src/services/ai/presets.ts](C:\Users\remok\projects\signaltopost\src\services\ai\presets.ts)
+- [src/services/ai/models.ts](C:\Users\remok\projects\signaltopost\src\services\ai\models.ts)
 - [src/app/settings/page.tsx](C:\Users\remok\projects\signaltopost\src\app\settings\page.tsx)
 
 Purpose:
 - define the code-backed style and format preset catalog
 - let the user save default preset combinations for X and LinkedIn
+- let the user save an OpenAI model override while keeping `OPENAI_MODEL` as the fallback
 - provide a lighter-weight control layer before generation so fewer rewrite rounds are needed
 
 ### Quality and cleanup

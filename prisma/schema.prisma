@@ -76,6 +76,7 @@ model User {
   timezone                    String
   automationEnabled           Boolean                  @default(true)
   githubIdeaAutomationEnabled Boolean                  @default(true)
+  openAiModel                 String?
   defaultXStylePreset         String?
   defaultXFormatPreset        String?
   defaultLinkedInStylePreset  String?

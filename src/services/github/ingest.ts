@@ -109,12 +109,14 @@ export async function ingestGithubCandidates(
     select: {
       id: true,
       timezone: true,
+      openAiModel: true,
       automationEnabled: true,
       githubIdeaAutomationEnabled: true,
     },
   }) as {
     id: string;
     timezone: string;
+    openAiModel: string | null;
     automationEnabled: boolean;
     githubIdeaAutomationEnabled: boolean;
   } | null;
@@ -192,6 +194,7 @@ export async function ingestGithubCandidates(
       ]
         .filter(Boolean)
         .join("\n\n"),
+      user.openAiModel,
     );
 
     const idea = await prisma.idea.create({
