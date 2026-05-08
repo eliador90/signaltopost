@@ -32,7 +32,7 @@ async function telegramRequest(method: string, payload: Record<string, unknown>)
     logger.error("Telegram API request failed", {
       method,
       status: response.status,
-      payload,
+      payload: redactTelegramPayload(payload),
       responseBody,
     });
 
@@ -47,12 +47,21 @@ async function telegramRequest(method: string, payload: Record<string, unknown>)
   ) {
     logger.error("Telegram API returned ok=false", {
       method,
-      payload,
+      payload: redactTelegramPayload(payload),
       responseBody,
     });
 
     throw new Error(`Telegram API ${method} returned ok=false`);
   }
+}
+
+function redactTelegramPayload(payload: Record<string, unknown>) {
+  return {
+    ...payload,
+    chat_id: payload.chat_id ? "[redacted]" : undefined,
+    text: typeof payload.text === "string" ? `[redacted:${payload.text.length}]` : undefined,
+    reply_markup: payload.reply_markup ? "[redacted]" : undefined,
+  };
 }
 
 export async function sendTelegramMessage(

@@ -1,5 +1,6 @@
 import type { Draft, Idea } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { requireDashboardAuth } from "@/lib/dashboardAuth";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ type Overview = {
 };
 
 export default async function HomePage() {
+  await requireDashboardAuth();
   const overview: Overview = await getOverview();
 
   return (

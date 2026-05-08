@@ -44,15 +44,16 @@ export async function POST(request: NextRequest) {
 }
 
 function isValidGithubSignature(rawBody: string, signatureHeader: string | null) {
-  if (!env.GITHUB_WEBHOOK_SECRET) {
-    return true;
+  const secret = env.GITHUB_WEBHOOK_SECRET?.trim();
+  if (!secret) {
+    return env.NODE_ENV !== "production";
   }
 
   if (!signatureHeader?.startsWith("sha256=")) {
     return false;
   }
 
-  const expected = `sha256=${createHmac("sha256", env.GITHUB_WEBHOOK_SECRET).update(rawBody).digest("hex")}`;
+  const expected = `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}`;
   const actualBuffer = Buffer.from(signatureHeader);
   const expectedBuffer = Buffer.from(expected);
 

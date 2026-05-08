@@ -4,6 +4,7 @@ import { FeedbackAction, PostJobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { requireDashboardAuth } from "@/lib/dashboardAuth";
 import { parseDateTimeLocalInput } from "@/lib/time";
 import { generateDraftsForIdea } from "@/services/ideas/generateForIdea";
 import { publishDraftNow } from "@/services/posts/publisher";
@@ -13,6 +14,7 @@ import { sendDraftForReview } from "@/services/telegram/handlers";
 import { ideaPlatformKeyboard } from "@/services/telegram/keyboards";
 
 export async function archiveIdeaAction(formData: FormData) {
+  await requireDashboardAuth();
   const ideaId = String(formData.get("ideaId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/ideas");
 
@@ -32,6 +34,7 @@ export async function archiveIdeaAction(formData: FormData) {
 }
 
 export async function generateDraftsForIdeaAction(formData: FormData) {
+  await requireDashboardAuth();
   const ideaId = String(formData.get("ideaId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/ideas");
 
@@ -48,11 +51,16 @@ export async function generateDraftsForIdeaAction(formData: FormData) {
     return redirectWithMessage(redirectPath, "Drafts already exist for this idea.", "error");
   }
 
+  if (result.status === "generation_failed") {
+    return redirectWithMessage(redirectPath, result.reason, "error");
+  }
+
   revalidateDashboardPaths();
   redirectWithMessage(redirectPath, result.created > 0 ? `Generated ${result.created} draft(s).` : "No new drafts were created.", "success");
 }
 
 export async function sendIdeaToTelegramAction(formData: FormData) {
+  await requireDashboardAuth();
   const ideaId = String(formData.get("ideaId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/ideas");
 
@@ -93,6 +101,7 @@ export async function sendIdeaToTelegramAction(formData: FormData) {
 }
 
 export async function sendDraftToTelegramAction(formData: FormData) {
+  await requireDashboardAuth();
   const draftId = String(formData.get("draftId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
 
@@ -114,6 +123,7 @@ export async function sendDraftToTelegramAction(formData: FormData) {
 }
 
 export async function approveDraftAction(formData: FormData) {
+  await requireDashboardAuth();
   const draftId = String(formData.get("draftId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
 
@@ -144,9 +154,48 @@ export async function approveDraftAction(formData: FormData) {
   redirectWithMessage(redirectPath, "Draft approved.", "success");
 }
 
-export async function rejectDraftAction(formData: FormData) {
+export async function approveEditedDraftAction(formData: FormData) {
+  await requireDashboardAuth();
   const draftId = String(formData.get("draftId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
+  const editedContent = String(formData.get("editedContent") ?? "").trim();
+
+  if (!draftId || !editedContent) {
+    return redirectWithMessage(redirectPath, "Add edited text before saving.", "error");
+  }
+
+  const draft = await prisma.draft.findUnique({ where: { id: draftId } });
+  if (!draft) {
+    return redirectWithMessage(redirectPath, "Draft not found.", "error");
+  }
+
+  await prisma.$transaction([
+    prisma.draft.update({
+      where: { id: draft.id },
+      data: {
+        content: editedContent,
+        status: "APPROVED",
+      },
+    }),
+    prisma.feedbackEvent.create({
+      data: {
+        userId: draft.userId,
+        draftId: draft.id,
+        action: FeedbackAction.EDITED,
+        editedContent,
+      },
+    }),
+  ]);
+
+  revalidateDashboardPaths();
+  redirectWithMessage(redirectPath, "Edited draft saved and marked ready.", "success");
+}
+
+export async function rejectDraftAction(formData: FormData) {
+  await requireDashboardAuth();
+  const draftId = String(formData.get("draftId") ?? "");
+  const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
+  const reason = nullableValue(formData.get("reason"));
 
   if (!draftId) {
     return redirectWithMessage(redirectPath, "Missing draft.", "error");
@@ -167,6 +216,7 @@ export async function rejectDraftAction(formData: FormData) {
         userId: draft.userId,
         draftId: draft.id,
         action: FeedbackAction.REJECTED,
+        reason,
       },
     }),
   ]);
@@ -176,6 +226,7 @@ export async function rejectDraftAction(formData: FormData) {
 }
 
 export async function postDraftNowAction(formData: FormData) {
+  await requireDashboardAuth();
   const draftId = String(formData.get("draftId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
 
@@ -206,6 +257,7 @@ export async function postDraftNowAction(formData: FormData) {
 }
 
 export async function scheduleDraftAction(formData: FormData) {
+  await requireDashboardAuth();
   const draftId = String(formData.get("draftId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/drafts");
   const scheduledInput = String(formData.get("scheduledFor") ?? "");
@@ -247,6 +299,7 @@ export async function scheduleDraftAction(formData: FormData) {
 }
 
 export async function cancelScheduleAction(formData: FormData) {
+  await requireDashboardAuth();
   const jobId = String(formData.get("jobId") ?? "");
   const redirectPath = String(formData.get("redirectPath") ?? "/jobs");
 
@@ -292,4 +345,9 @@ function revalidateDashboardPaths() {
 
 function redirectWithMessage(path: string, message: string, tone: "success" | "error") {
   redirect(`${path}?message=${encodeURIComponent(message)}&tone=${tone}`);
+}
+
+function nullableValue(value: FormDataEntryValue | null) {
+  const stringValue = String(value ?? "").trim();
+  return stringValue || null;
 }

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { DraftGenerationError } from "@/services/ai/errors";
 import { isNearDuplicateDraft } from "@/services/ai/dedup";
 import { buildDraftSourceFromIdea, generateDraftPair } from "@/services/ai/generateDrafts";
 import { rankIdeas } from "@/services/ideas/rank";
@@ -47,9 +49,22 @@ export async function runGenerateDraftsJob() {
       continue;
     }
 
-    const drafts = await generateDraftPair(buildDraftSourceFromIdea(idea), {
-      user: idea.user,
-    });
+    let drafts: Awaited<ReturnType<typeof generateDraftPair>>;
+    try {
+      drafts = await generateDraftPair(buildDraftSourceFromIdea(idea), {
+        user: idea.user,
+      });
+    } catch (error) {
+      if (error instanceof DraftGenerationError) {
+        logger.warn("Skipped idea because draft generation failed", {
+          ideaId: idea.id,
+          error: error.message,
+        });
+        continue;
+      }
+
+      throw error;
+    }
     for (const draft of drafts) {
       const platformDrafts = recentDrafts.filter((existing) => existing.platform === draft.platform);
       if (isNearDuplicateDraft(draft.content, platformDrafts)) {

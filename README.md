@@ -102,7 +102,7 @@ Next up:
 1. Harden direct X posting against more API edge cases.
 2. Improve morning digest formatting and button flows further.
 3. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
-4. Add stronger post-generation validation for exact constraints like sentence count when needed.
+4. Keep refining post-generation validation and taste-memory scoring as more accepted and rejected examples accumulate.
 5. Consider exact-time one-shot publishing if scheduled publishing becomes important again.
 
 ## Important env vars
@@ -133,6 +133,14 @@ GitHub:
 - `GITHUB_WEBHOOK_SECRET`
 - `GITHUB_MAX_IDEAS_PER_DAY`
 - `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
+
+Cron:
+
+- `CRON_SECRET` must be set. Empty secrets are rejected by cron routes.
+
+Dashboard:
+
+- `DASHBOARD_SECRET` protects the private web dashboard with HTTP Basic Auth in production. The username can be anything; the password must match this secret.
 
 ## Current limitations
 

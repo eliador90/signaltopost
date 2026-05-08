@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { DraftGenerationError } from "@/services/ai/errors";
 import { isNearDuplicateDraft } from "@/services/ai/dedup";
 import { buildDraftSourceFromIdea, generateDraftPair } from "@/services/ai/generateDrafts";
 
@@ -43,9 +44,18 @@ export async function generateDraftsForIdea(ideaId: string) {
     },
   });
 
-  const drafts = await generateDraftPair(buildDraftSourceFromIdea(idea), {
-    user: idea.user,
-  });
+  let drafts: Awaited<ReturnType<typeof generateDraftPair>>;
+  try {
+    drafts = await generateDraftPair(buildDraftSourceFromIdea(idea), {
+      user: idea.user,
+    });
+  } catch (error) {
+    if (error instanceof DraftGenerationError) {
+      return { status: "generation_failed" as const, reason: error.message };
+    }
+
+    throw error;
+  }
 
   let created = 0;
 

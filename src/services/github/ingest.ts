@@ -67,6 +67,7 @@ export async function ingestGithubEvents() {
         ...pulls.filter((pull) => Boolean(pull.merged_at)).map((pull) => buildPullRequestEvent(repoName, pull)),
         ...issues.filter((issue) => !issue.pull_request).map((issue) => buildIssueEvent(repoName, issue)),
       ]
+        .filter((candidate) => scoreGithubCandidate(candidate) >= 5)
         .sort((left, right) => scoreGithubCandidate(right) - scoreGithubCandidate(left))
         .slice(0, 4);
 

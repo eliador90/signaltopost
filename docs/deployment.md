@@ -78,6 +78,7 @@ DIRECT_DATABASE_URL=postgresql://...
    - `X_ACCESS_TOKEN_SECRET`
    - `X_BEARER_TOKEN`
    - `CRON_SECRET`
+   - `DASHBOARD_SECRET`
    - `ENABLE_LOCAL_SCHEDULER=false`
 4. Deploy the app.
 5. Verify `https://<your-app>.vercel.app/api/health`.
@@ -152,6 +153,12 @@ Add these GitHub repository secrets:
 
 - `SIGNALTOPOST_BASE_URL`
 - `SIGNALTOPOST_CRON_SECRET`
+
+## Dashboard access
+
+The web dashboard is protected with HTTP Basic Auth in production.
+
+Set `DASHBOARD_SECRET` in Vercel to a long random value. When the browser prompts for credentials, the username can be anything and the password must match `DASHBOARD_SECRET`.
 
 Important:
 

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
+import { requireDashboardAuth } from "@/lib/dashboardAuth";
 import { logger } from "@/lib/logger";
 import { aiModelOptions, resolveAiModel } from "@/services/ai/models";
 import { formatPresets, stylePresets } from "@/services/ai/presets";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 async function updateDefaultPresets(formData: FormData) {
   "use server";
 
+  await requireDashboardAuth();
   const userId = String(formData.get("userId") ?? "");
   if (!userId) {
     return;
@@ -32,6 +34,7 @@ async function updateDefaultPresets(formData: FormData) {
 async function updateAiModel(formData: FormData) {
   "use server";
 
+  await requireDashboardAuth();
   const userId = String(formData.get("userId") ?? "");
   const model = nullableValue(formData.get("openAiModel"));
   if (!userId) {
@@ -51,6 +54,7 @@ async function updateAiModel(formData: FormData) {
 async function updateGithubIdeaAutomation(formData: FormData) {
   "use server";
 
+  await requireDashboardAuth();
   const userId = String(formData.get("userId") ?? "");
   const enabled = String(formData.get("enabled") ?? "") === "true";
   if (!userId) {
@@ -71,6 +75,7 @@ async function updateGithubIdeaAutomation(formData: FormData) {
 async function updateBackgroundAutomation(formData: FormData) {
   "use server";
 
+  await requireDashboardAuth();
   const userId = String(formData.get("userId") ?? "");
   const enabled = String(formData.get("enabled") ?? "") === "true";
   if (!userId) {
@@ -97,6 +102,7 @@ async function updateBackgroundAutomation(formData: FormData) {
 }
 
 export default async function SettingsPage() {
+  await requireDashboardAuth();
   const user = (await prisma.user.findFirst()) as
     | (Awaited<ReturnType<typeof prisma.user.findFirst>> & { automationEnabled?: boolean })
     | null;

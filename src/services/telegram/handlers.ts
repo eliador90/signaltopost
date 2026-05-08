@@ -1,9 +1,11 @@
 import { DraftPlatform, FeedbackAction, PendingPlatformSelection } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { DraftGenerationError } from "@/services/ai/errors";
 import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
 import { getFormatPreset, getStylePreset } from "@/services/ai/presets";
 import { rewriteDraft } from "@/services/ai/rewriteDraft";
+import { scoreDraft } from "@/services/ai/scoreDraft";
 import { createIdea } from "@/services/ideas/create";
 import {
   createGithubIdeasForRange,
@@ -23,9 +25,11 @@ import {
   formatPresetKeyboard,
   generationSummaryKeyboard,
   ideaPlatformKeyboard,
+  rejectReasonKeyboard,
   scheduleKeyboard,
   stylePresetKeyboard,
 } from "@/services/telegram/keyboards";
+import { rejectionReasonLabels, type RejectionReason } from "@/services/ai/taste";
 import { isCommand, parseCommand } from "@/services/telegram/parser";
 import type { TelegramCallbackQuery, TelegramMessage, TelegramUpdate } from "@/types/telegram";
 
@@ -190,9 +194,19 @@ async function handleGithubOnDemandRequest(
       }. Generating X and LinkedIn drafts from the strongest one now.`,
     );
 
-    const drafts = await generateDraftsForPlatforms(getDefaultOnDemandPlatforms(), buildDraftSourceFromIdea(idea), {
-      user: idea.user,
-    });
+    let drafts: Awaited<ReturnType<typeof generateDraftsForPlatforms>>;
+    try {
+      drafts = await generateDraftsForPlatforms(getDefaultOnDemandPlatforms(), buildDraftSourceFromIdea(idea), {
+        user: idea.user,
+      });
+    } catch (error) {
+      if (error instanceof DraftGenerationError) {
+        await sendTelegramMessage(chatId, error.message);
+        return;
+      }
+
+      throw error;
+    }
 
     for (const draft of drafts) {
       const storedDraft = await prisma.draft.create({
@@ -289,20 +303,25 @@ async function handleCallback(callbackQuery: TelegramCallbackQuery) {
       await sendTelegramMessage(chatId, `Approved ${draft.platform} draft.`);
       return;
     case "reject":
-      await prisma.draft.update({
-        where: { id: draft.id },
-        data: { status: "REJECTED" },
-      });
-      await prisma.feedbackEvent.create({
-        data: {
-          userId: draft.userId,
-          draftId: draft.id,
-          action: FeedbackAction.REJECTED,
-        },
-      });
+      await rejectDraftWithReason(draft.id, draft.userId, null);
       await answerCallbackQuery(callbackQuery.id, "Draft rejected");
       await sendTelegramMessage(chatId, `Rejected ${draft.platform} draft.`);
       return;
+    case "reject_options":
+      await answerCallbackQuery(callbackQuery.id, "Choose a reason");
+      await sendTelegramMessage(chatId, "What was wrong with this draft?", rejectReasonKeyboard(draft.id));
+      return;
+    case "reject_too_generic":
+    case "reject_too_long":
+    case "reject_weak_hook":
+    case "reject_wrong_angle":
+    case "reject_not_worth_posting": {
+      const reason = action.replace("reject_", "") as RejectionReason;
+      await rejectDraftWithReason(draft.id, draft.userId, reason);
+      await answerCallbackQuery(callbackQuery.id, "Draft rejected");
+      await sendTelegramMessage(chatId, `Rejected ${draft.platform} draft: ${rejectionReasonLabels[reason]}.`);
+      return;
+    }
     case "schedule_options":
       await answerCallbackQuery(callbackQuery.id, "Choose a schedule slot");
       await sendTelegramMessage(
@@ -530,6 +549,7 @@ async function rewriteAndResendDraft(
       content: rewritten,
       status: "PENDING_REVIEW",
       scheduledFor: null,
+      qualityScore: scoreDraft(rewritten, draft.platform === "X" ? "x" : "linkedin"),
     },
   });
 
@@ -550,6 +570,23 @@ async function rewriteAndResendDraft(
   });
 
   await sendDraftForReview(chatId, draftId);
+}
+
+async function rejectDraftWithReason(draftId: string, userId: string, reason: RejectionReason | null) {
+  await prisma.$transaction([
+    prisma.draft.update({
+      where: { id: draftId },
+      data: { status: "REJECTED" },
+    }),
+    prisma.feedbackEvent.create({
+      data: {
+        userId,
+        draftId,
+        action: FeedbackAction.REJECTED,
+        reason,
+      },
+    }),
+  ]);
 }
 
 export async function sendDraftForReview(chatId: string, draftId: string) {
@@ -657,14 +694,25 @@ async function generatePendingIdeaDrafts(
   );
 
   const source = buildDraftSourceFromIdea(idea);
-  const drafts = await generateDraftsForPlatforms(platforms, source, {
-    user: idea.user,
-    preferences: {
-      stylePresetId: user.pendingStylePreset,
-      formatPresetId: user.pendingFormatPreset,
-      generationNote: user.pendingGenerationNote,
-    },
-  });
+  let drafts: Awaited<ReturnType<typeof generateDraftsForPlatforms>>;
+  try {
+    drafts = await generateDraftsForPlatforms(platforms, source, {
+      user: idea.user,
+      preferences: {
+        stylePresetId: user.pendingStylePreset,
+        formatPresetId: user.pendingFormatPreset,
+        generationNote: user.pendingGenerationNote,
+      },
+    });
+  } catch (error) {
+    await clearPendingSelection(user.id);
+    if (error instanceof DraftGenerationError) {
+      await sendTelegramMessage(chatId, error.message);
+      return;
+    }
+
+    throw error;
+  }
 
   for (const draft of drafts) {
     const storedDraft = await prisma.draft.create({

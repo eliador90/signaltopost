@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runPublishScheduledJob } from "@/jobs/publishScheduled";
+import { isAuthorizedCronRequest } from "@/lib/cronAuth";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
@@ -27,9 +28,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
-
-function isAuthorized(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  return !secret || request.headers.get("authorization") === `Bearer ${secret}`;
 }

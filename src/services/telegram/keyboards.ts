@@ -1,4 +1,5 @@
 import { formatPresets, getFormatPreset, getStylePreset, stylePresets } from "@/services/ai/presets";
+import { rejectionReasonLabels } from "@/services/ai/taste";
 
 export function ideaPlatformKeyboard(ideaId: string) {
   return {
@@ -52,7 +53,7 @@ export function draftKeyboard(draftId: string) {
     inline_keyboard: [
       [
         { text: "Approve", callback_data: `draft:approve:${draftId}` },
-        { text: "Reject", callback_data: `draft:reject:${draftId}` },
+        { text: "Reject", callback_data: `draft:reject_options:${draftId}` },
       ],
       [
         { text: "Post now", callback_data: `draft:post_now:${draftId}` },
@@ -69,6 +70,17 @@ export function draftKeyboard(draftId: string) {
       [
         { text: "Rewrite more like me", callback_data: `draft:rewrite_personal:${draftId}` },
       ],
+    ],
+  };
+}
+
+export function rejectReasonKeyboard(draftId: string) {
+  return {
+    inline_keyboard: [
+      ...Object.entries(rejectionReasonLabels).map(([reason, label]) => [
+        { text: label, callback_data: `draft:reject_${reason}:${draftId}` },
+      ]),
+      [{ text: "Back to actions", callback_data: `draft:show_actions:${draftId}` }],
     ],
   };
 }

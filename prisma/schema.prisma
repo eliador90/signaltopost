@@ -165,12 +165,14 @@ model PostJob {
 }
 
 model FeedbackEvent {
-  id        String         @id @default(cuid())
-  userId    String
-  draftId   String
-  action    FeedbackAction
-  notes     String?
-  createdAt DateTime       @default(now())
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  draft     Draft          @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  userId        String
+  draftId       String
+  action        FeedbackAction
+  reason        String?
+  notes         String?
+  editedContent String?
+  createdAt     DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  draft         Draft          @relation(fields: [draftId], references: [id], onDelete: Cascade)
 }

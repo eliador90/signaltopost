@@ -2,6 +2,7 @@ import type { Draft, PostJob } from "@prisma/client";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cancelScheduleAction, sendDraftToTelegramAction } from "@/app/actions/dashboard";
 import { prisma } from "@/lib/db";
+import { requireDashboardAuth } from "@/lib/dashboardAuth";
 import { formatDateTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function JobsPage({ searchParams }: { searchParams?: SearchParams }) {
+  await requireDashboardAuth();
   const params = searchParams ? await searchParams : undefined;
   const message = firstParam(params?.message);
   const tone = firstParam(params?.tone);

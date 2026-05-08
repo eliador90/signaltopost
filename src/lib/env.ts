@@ -32,6 +32,7 @@ const envSchema = z.object({
   ENABLE_LOCAL_SCHEDULER: z.coerce.boolean().default(false),
   LOCAL_PUBLISH_POLL_SECONDS: z.coerce.number().int().positive().default(60),
   CRON_SECRET: z.string().optional(),
+  DASHBOARD_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -63,6 +64,7 @@ export const env = envSchema.parse({
   ENABLE_LOCAL_SCHEDULER: process.env.ENABLE_LOCAL_SCHEDULER,
   LOCAL_PUBLISH_POLL_SECONDS: process.env.LOCAL_PUBLISH_POLL_SECONDS,
   CRON_SECRET: process.env.CRON_SECRET,
+  DASHBOARD_SECRET: process.env.DASHBOARD_SECRET,
 });
 
 export function getConfiguredGithubRepos() {

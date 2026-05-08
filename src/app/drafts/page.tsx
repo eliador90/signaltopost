@@ -1,6 +1,7 @@
 import type { Draft, Idea } from "@prisma/client";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
+  approveEditedDraftAction,
   approveDraftAction,
   postDraftNowAction,
   rejectDraftAction,
@@ -8,12 +9,15 @@ import {
   sendDraftToTelegramAction,
 } from "@/app/actions/dashboard";
 import { prisma } from "@/lib/db";
+import { requireDashboardAuth } from "@/lib/dashboardAuth";
+import { rejectionReasonLabels } from "@/services/ai/taste";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export default async function DraftsPage({ searchParams }: { searchParams?: SearchParams }) {
+  await requireDashboardAuth();
   const params = searchParams ? await searchParams : undefined;
   const message = firstParam(params?.message);
   const tone = firstParam(params?.tone);
@@ -90,12 +94,31 @@ export default async function DraftsPage({ searchParams }: { searchParams?: Sear
                       <form action={rejectDraftAction}>
                         <input name="draftId" type="hidden" value={draft.id} />
                         <input name="redirectPath" type="hidden" value="/drafts" />
+                        <select aria-label="Reject reason" name="reason" defaultValue="too_generic">
+                          {Object.entries(rejectionReasonLabels).map(([reason, label]) => (
+                            <option key={reason} value={reason}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
                         <button className="chip danger" type="submit">
                           Reject
                         </button>
                       </form>
                     ) : null}
                   </div>
+                </div>
+                <div className="action-group">
+                  <span className="action-label">Edit</span>
+                  <span className="action-help">Save a final version so future drafts can learn from it.</span>
+                  <form action={approveEditedDraftAction}>
+                    <input name="draftId" type="hidden" value={draft.id} />
+                    <input name="redirectPath" type="hidden" value="/drafts" />
+                    <textarea aria-label="Edited draft" name="editedContent" defaultValue={draft.content} rows={5} />
+                    <button className="chip" type="submit">
+                      Save edit
+                    </button>
+                  </form>
                 </div>
                 <div className="action-group">
                   <span className="action-label">Publish</span>

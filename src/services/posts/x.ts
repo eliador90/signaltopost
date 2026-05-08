@@ -6,6 +6,13 @@ import { buildManualPostingPayload } from "@/services/posts/fallback";
 const xApiUrl = "https://api.twitter.com/2/tweets";
 
 export async function publishToX(draft: Draft) {
+  if (draft.content.length > 280) {
+    return {
+      status: "failed" as const,
+      error: `X publish blocked locally: draft is ${draft.content.length} characters, over the 280 character limit.`,
+    };
+  }
+
   if (!hasXCredentials()) {
     const fallback = buildManualPostingPayload({
       content: draft.content,
