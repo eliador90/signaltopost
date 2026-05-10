@@ -4,6 +4,8 @@ SignalToPost is a self-hosted, Telegram-first AI writing and publishing cockpit.
 
 It is built for one operator or small team running their own credentials. This is not a hosted service: forks need their own Telegram bot, OpenAI key, database, deployment, and optional social/GitHub credentials.
 
+![SignalToPost demo](./public/demo/signaltopost-demo.gif)
+
 ## What It Does
 
 - Captures ideas from Telegram messages.
