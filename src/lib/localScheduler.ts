@@ -3,7 +3,6 @@ import { logger } from "@/lib/logger";
 import { runPublishScheduledJob } from "@/jobs/publishScheduled";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __signalToPostPublishScheduler__: NodeJS.Timeout | undefined;
 }
 

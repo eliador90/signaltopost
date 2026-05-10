@@ -13,6 +13,8 @@ import {
 
 export const runtime = "nodejs";
 
+type GithubWebhookPayload = Record<string, unknown>;
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   if (!isValidGithubSignature(rawBody, request.headers.get("x-hub-signature-256"))) {
@@ -24,13 +26,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "missing_event" }, { status: 400 });
   }
 
-  const payload = JSON.parse(rawBody) as Record<string, any>;
+  const payload = JSON.parse(rawBody) as GithubWebhookPayload;
   if (eventName === "ping") {
     return NextResponse.json({ ok: true, message: "pong" });
   }
 
-  const repositoryName = String(payload.repository?.name ?? "");
-  const repositoryFullName = payload.repository?.full_name ? String(payload.repository.full_name) : null;
+  const repository = objectValue(payload.repository);
+  const repositoryName = stringValue(repository?.name);
+  const repositoryFullName = repository?.full_name ? stringValue(repository.full_name) : null;
   const repoName = getConfiguredGithubRepoName(repositoryName, repositoryFullName);
   if (!repoName) {
     return NextResponse.json({ ok: false, error: "missing_repository" }, { status: 400 });
@@ -66,7 +69,7 @@ function isValidGithubSignature(rawBody: string, signatureHeader: string | null)
   return timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
-function buildWebhookCandidates(eventName: string, payload: Record<string, any>, repoName: string) {
+function buildWebhookCandidates(eventName: string, payload: GithubWebhookPayload, repoName: string) {
   switch (eventName) {
     case "push":
       return buildPushCandidates(payload, repoName);
@@ -83,27 +86,29 @@ function buildWebhookCandidates(eventName: string, payload: Record<string, any>,
   }
 }
 
-function buildPushCandidates(payload: Record<string, any>, repoName: string): GithubEventCandidate[] {
-  const commits = Array.isArray(payload.commits) ? payload.commits.slice(-3) : [];
-  return commits.map((commit) =>
-    buildCommitEvent(repoName, {
-      sha: String(commit.id),
+function buildPushCandidates(payload: GithubWebhookPayload, repoName: string): GithubEventCandidate[] {
+  const commits = Array.isArray(payload.commits) ? payload.commits.slice(-3).filter(isObjectValue) : [];
+  return commits.map((commit) => {
+    const author = objectValue(commit.author);
+    return buildCommitEvent(repoName, {
+      sha: stringValue(commit.id),
       commit: {
-        message: String(commit.message ?? ""),
+        message: stringValue(commit.message),
         author: {
-          date: commit.timestamp ? String(commit.timestamp) : undefined,
-          name: commit.author?.name ? String(commit.author.name) : undefined,
+          date: commit.timestamp ? stringValue(commit.timestamp) : undefined,
+          name: author?.name ? stringValue(author.name) : undefined,
         },
       },
-      html_url: String(commit.url ?? payload.compare ?? ""),
-    }),
-  );
+      html_url: stringValue(commit.url ?? payload.compare),
+    });
+  });
 }
 
-function buildPullRequestCandidates(payload: Record<string, any>, repoName: string) {
-  const action = String(payload.action ?? "");
+function buildPullRequestCandidates(payload: GithubWebhookPayload, repoName: string) {
+  const action = stringValue(payload.action);
+  const pullRequest = objectValue(payload.pull_request);
   const relevantActions = new Set(["opened", "edited", "reopened", "closed", "synchronize"]);
-  if (!relevantActions.has(action) || !payload.pull_request) {
+  if (!relevantActions.has(action) || !pullRequest) {
     return [];
   }
 
@@ -111,23 +116,24 @@ function buildPullRequestCandidates(payload: Record<string, any>, repoName: stri
     buildWebhookPullRequestEvent(
       repoName,
       {
-        id: Number(payload.pull_request.id),
-        number: Number(payload.pull_request.number),
-        title: String(payload.pull_request.title ?? ""),
-        body: payload.pull_request.body ? String(payload.pull_request.body) : null,
-        html_url: String(payload.pull_request.html_url ?? ""),
-        updated_at: String(payload.pull_request.updated_at ?? new Date().toISOString()),
-        merged_at: payload.pull_request.merged_at ? String(payload.pull_request.merged_at) : null,
+        id: numberValue(pullRequest.id),
+        number: numberValue(pullRequest.number),
+        title: stringValue(pullRequest.title),
+        body: pullRequest.body ? stringValue(pullRequest.body) : null,
+        html_url: stringValue(pullRequest.html_url),
+        updated_at: stringValue(pullRequest.updated_at || new Date().toISOString()),
+        merged_at: pullRequest.merged_at ? stringValue(pullRequest.merged_at) : null,
       },
       action,
     ),
   ];
 }
 
-function buildIssueCandidates(payload: Record<string, any>, repoName: string) {
-  const action = String(payload.action ?? "");
+function buildIssueCandidates(payload: GithubWebhookPayload, repoName: string) {
+  const action = stringValue(payload.action);
+  const issue = objectValue(payload.issue);
   const relevantActions = new Set(["opened", "edited", "reopened", "closed"]);
-  if (!relevantActions.has(action) || !payload.issue) {
+  if (!relevantActions.has(action) || !issue) {
     return [];
   }
 
@@ -135,41 +141,59 @@ function buildIssueCandidates(payload: Record<string, any>, repoName: string) {
     buildWebhookIssueEvent(
       repoName,
       {
-        id: Number(payload.issue.id),
-        number: Number(payload.issue.number),
-        title: String(payload.issue.title ?? ""),
-        body: payload.issue.body ? String(payload.issue.body) : null,
-        html_url: String(payload.issue.html_url ?? ""),
-        updated_at: String(payload.issue.updated_at ?? new Date().toISOString()),
+        id: numberValue(issue.id),
+        number: numberValue(issue.number),
+        title: stringValue(issue.title),
+        body: issue.body ? stringValue(issue.body) : null,
+        html_url: stringValue(issue.html_url),
+        updated_at: stringValue(issue.updated_at || new Date().toISOString()),
       },
       action,
     ),
   ];
 }
 
-function buildReleaseCandidates(payload: Record<string, any>, repoName: string) {
-  if (!payload.release) {
+function buildReleaseCandidates(payload: GithubWebhookPayload, repoName: string) {
+  const release = objectValue(payload.release);
+  if (!release) {
     return [];
   }
 
   return [
     buildReleaseEvent(repoName, {
-      id: Number(payload.release.id),
-      tag_name: String(payload.release.tag_name ?? ""),
-      name: payload.release.name ? String(payload.release.name) : null,
-      body: payload.release.body ? String(payload.release.body) : null,
-      html_url: String(payload.release.html_url ?? ""),
-      published_at: payload.release.published_at ? String(payload.release.published_at) : null,
-      created_at: payload.release.created_at ? String(payload.release.created_at) : null,
+      id: numberValue(release.id),
+      tag_name: stringValue(release.tag_name),
+      name: release.name ? stringValue(release.name) : null,
+      body: release.body ? stringValue(release.body) : null,
+      html_url: stringValue(release.html_url),
+      published_at: release.published_at ? stringValue(release.published_at) : null,
+      created_at: release.created_at ? stringValue(release.created_at) : null,
     }),
   ];
 }
 
-function buildRepositoryCandidates(payload: Record<string, any>, repoName: string) {
+function buildRepositoryCandidates(payload: GithubWebhookPayload, repoName: string) {
   if (payload.action !== "edited") {
     return [];
   }
 
-  const description = payload.repository?.description ? String(payload.repository.description) : null;
+  const repository = objectValue(payload.repository);
+  const description = repository?.description ? stringValue(repository.description) : null;
   return [buildRepositoryEvent(repoName, description)];
+}
+
+function objectValue(value: unknown): GithubWebhookPayload | null {
+  return isObjectValue(value) ? value : null;
+}
+
+function isObjectValue(value: unknown): value is GithubWebhookPayload {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringValue(value: unknown) {
+  return value == null ? "" : String(value);
+}
+
+function numberValue(value: unknown) {
+  return Number(value);
 }
