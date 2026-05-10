@@ -1,5 +1,6 @@
 import { DraftPlatform, FeedbackAction, PendingPlatformSelection } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { DraftGenerationError } from "@/services/ai/errors";
 import { buildDraftSourceFromIdea, generateDraftsForPlatforms } from "@/services/ai/generateDrafts";
@@ -58,7 +59,7 @@ async function handleIncomingMessage(message: TelegramMessage) {
     create: {
       telegramChatId: chatId,
       name: message.from?.first_name ?? message.from?.username ?? "SignalToPost User",
-      timezone: "Europe/Zurich",
+      timezone: env.TIMEZONE,
     },
     update: {
       name: message.from?.first_name ?? message.from?.username ?? undefined,
@@ -621,7 +622,7 @@ export async function sendDraftForReview(chatId: string, draftId: string) {
   const footer =
     draft.scheduledFor && draft.status === "SCHEDULED"
       ? `\n\n<b>Schedule</b>\n${escapeTelegramHtml(
-          `Scheduled for ${formatDateTime(draft.scheduledFor, draft.user?.timezone ?? "Europe/Zurich")}`,
+          `Scheduled for ${formatDateTime(draft.scheduledFor, draft.user?.timezone ?? env.TIMEZONE)}`,
         )}`
       : "";
 

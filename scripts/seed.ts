@@ -1,4 +1,5 @@
 import { prisma } from "../src/lib/db";
+import { env } from "../src/lib/env";
 
 async function main() {
   const user = await prisma.user.upsert({
@@ -7,7 +8,7 @@ async function main() {
     create: {
       telegramChatId: "seed-user",
       name: "Seed User",
-      timezone: "Europe/Zurich",
+      timezone: env.TIMEZONE,
     },
   });
 

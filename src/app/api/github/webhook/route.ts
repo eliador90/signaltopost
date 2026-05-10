@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { env, getConfiguredGithubRepoName } from "@/lib/env";
 import {
   buildCommitEvent,
   buildReleaseEvent,
@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, message: "pong" });
   }
 
-  const repoName = String(payload.repository?.name ?? "");
+  const repositoryName = String(payload.repository?.name ?? "");
+  const repositoryFullName = payload.repository?.full_name ? String(payload.repository.full_name) : null;
+  const repoName = getConfiguredGithubRepoName(repositoryName, repositoryFullName);
   if (!repoName) {
     return NextResponse.json({ ok: false, error: "missing_repository" }, { status: 400 });
   }
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ignored: true, eventName, repoName });
   }
 
-  const result = await ingestGithubWebhookEvent(repoName, candidates);
+  const result = await ingestGithubWebhookEvent(repoName, candidates, repositoryFullName);
   return NextResponse.json({ ok: true, eventName, result });
 }
 

@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { env, getGithubRepoApiPath } from "@/lib/env";
 
 const githubApiBaseUrl = "https://api.github.com";
 
@@ -87,33 +87,33 @@ export function getGithubClient() {
       const params = new URLSearchParams({ per_page: String(perPage) });
       if (range?.since) params.set("since", range.since.toISOString());
       if (range?.until) params.set("until", range.until.toISOString());
-      return githubRequest<GithubCommitPayload[]>(`/repos/${env.GITHUB_USERNAME}/${repoName}/commits?${params}`);
+      return githubRequest<GithubCommitPayload[]>(`/repos/${getGithubRepoApiPath(repoName)}/commits?${params}`);
     },
     listPullRequests(repoName: string, perPage = 5) {
       return githubRequest<GithubPullRequestPayload[]>(
-        `/repos/${env.GITHUB_USERNAME}/${repoName}/pulls?state=closed&sort=updated&direction=desc&per_page=${perPage}`,
+        `/repos/${getGithubRepoApiPath(repoName)}/pulls?state=closed&sort=updated&direction=desc&per_page=${perPage}`,
       );
     },
     listIssues(repoName: string, perPage = 5) {
       return githubRequest<GithubIssuePayload[]>(
-        `/repos/${env.GITHUB_USERNAME}/${repoName}/issues?state=all&sort=updated&direction=desc&per_page=${perPage}`,
+        `/repos/${getGithubRepoApiPath(repoName)}/issues?state=all&sort=updated&direction=desc&per_page=${perPage}`,
       );
     },
     getRepo(repoName: string) {
       return githubRequest<{ full_name: string; description: string | null }>(
-        `/repos/${env.GITHUB_USERNAME}/${repoName}`,
+        `/repos/${getGithubRepoApiPath(repoName)}`,
       );
     },
     listReleases(repoName: string, perPage = 5) {
       return githubRequest<GithubReleasePayload[]>(
-        `/repos/${env.GITHUB_USERNAME}/${repoName}/releases?per_page=${perPage}`,
+        `/repos/${getGithubRepoApiPath(repoName)}/releases?per_page=${perPage}`,
       );
     },
     listWebhooks(repoName: string) {
-      return githubRequest<GithubWebhookPayload[]>(`/repos/${env.GITHUB_USERNAME}/${repoName}/hooks?per_page=100`);
+      return githubRequest<GithubWebhookPayload[]>(`/repos/${getGithubRepoApiPath(repoName)}/hooks?per_page=100`);
     },
     updateWebhook(repoName: string, hookId: number, input: { active: boolean }) {
-      return githubRequest<GithubWebhookPayload>(`/repos/${env.GITHUB_USERNAME}/${repoName}/hooks/${hookId}`, {
+      return githubRequest<GithubWebhookPayload>(`/repos/${getGithubRepoApiPath(repoName)}/hooks/${hookId}`, {
         method: "PATCH",
         body: JSON.stringify(input),
       });

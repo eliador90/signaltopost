@@ -9,6 +9,12 @@ const envSchema = z.object({
     .default("postgresql://postgres:postgres@localhost:5432/signaltopost?schema=public"),
   DIRECT_DATABASE_URL: z.string().optional(),
   TIMEZONE: z.string().default("Europe/Zurich"),
+  CONTENT_PROFILE_CONTEXT: z.string().optional(),
+  CONTENT_PROFILE_THEMES: z.string().optional(),
+  CONTENT_PROFILE_VOICE_RULES: z.string().optional(),
+  CONTENT_PROFILE_AVOID_RULES: z.string().optional(),
+  CONTENT_PROFILE_X_GUIDANCE: z.string().optional(),
+  CONTENT_PROFILE_LINKEDIN_GUIDANCE: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default("gpt-5.4"),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
@@ -41,6 +47,12 @@ export const env = envSchema.parse({
   DATABASE_URL: process.env.DATABASE_URL,
   DIRECT_DATABASE_URL: process.env.DIRECT_DATABASE_URL,
   TIMEZONE: process.env.TIMEZONE,
+  CONTENT_PROFILE_CONTEXT: process.env.CONTENT_PROFILE_CONTEXT,
+  CONTENT_PROFILE_THEMES: process.env.CONTENT_PROFILE_THEMES,
+  CONTENT_PROFILE_VOICE_RULES: process.env.CONTENT_PROFILE_VOICE_RULES,
+  CONTENT_PROFILE_AVOID_RULES: process.env.CONTENT_PROFILE_AVOID_RULES,
+  CONTENT_PROFILE_X_GUIDANCE: process.env.CONTENT_PROFILE_X_GUIDANCE,
+  CONTENT_PROFILE_LINKEDIN_GUIDANCE: process.env.CONTENT_PROFILE_LINKEDIN_GUIDANCE,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_MODEL: process.env.OPENAI_MODEL,
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
@@ -72,4 +84,44 @@ export function getConfiguredGithubRepos() {
     .split(",")
     .map((repo) => repo.trim())
     .filter(Boolean);
+}
+
+export function getGithubRepoApiPath(repoName: string) {
+  if (repoName.includes("/")) {
+    return repoName;
+  }
+
+  if (!env.GITHUB_USERNAME) {
+    throw new Error("GITHUB_USERNAME is required when GITHUB_REPOS contains repo names without owners");
+  }
+
+  return `${env.GITHUB_USERNAME}/${repoName}`;
+}
+
+export function isConfiguredGithubRepo(repoName: string, fullName?: string | null) {
+  const configuredRepos = getConfiguredGithubRepos();
+  return configuredRepos.some((configuredRepo) => {
+    if (configuredRepo === repoName || configuredRepo === fullName) {
+      return true;
+    }
+
+    if (fullName) {
+      return false;
+    }
+
+    return configuredRepo.includes("/") && configuredRepo.split("/").at(-1) === repoName;
+  });
+}
+
+export function getConfiguredGithubRepoName(repoName: string, fullName?: string | null) {
+  const configuredRepos = getConfiguredGithubRepos();
+  const exactMatch = configuredRepos.find((configuredRepo) => configuredRepo === repoName || configuredRepo === fullName);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const ownerRepoMatch = fullName
+    ? null
+    : configuredRepos.find((configuredRepo) => configuredRepo.includes("/") && configuredRepo.split("/").at(-1) === repoName);
+  return ownerRepoMatch ?? repoName;
 }

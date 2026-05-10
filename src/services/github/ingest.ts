@@ -1,6 +1,6 @@
 import { GithubEventType, IdeaSource } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getConfiguredGithubRepos } from "@/lib/env";
+import { getConfiguredGithubRepos, isConfiguredGithubRepo } from "@/lib/env";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import {
@@ -85,14 +85,14 @@ export async function ingestGithubEvents() {
 export async function ingestGithubWebhookEvent(
   repoName: string,
   candidates: GithubEventCandidate[],
+  repoFullName?: string | null,
 ) {
   const user = await prisma.user.findFirst();
   if (!user) {
     return { synced: 0, ideasCreated: 0, repoName, reason: "no_user" as const };
   }
 
-  const configuredRepos = getConfiguredGithubRepos();
-  if (!configuredRepos.includes(repoName)) {
+  if (!isConfiguredGithubRepo(repoName, repoFullName)) {
     return { synced: 0, ideasCreated: 0, repoName, reason: "repo_not_configured" as const };
   }
 

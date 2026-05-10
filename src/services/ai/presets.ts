@@ -1,6 +1,6 @@
 import { DraftPlatform, type User } from "@prisma/client";
 
-export type StylePresetId = "default" | "builder_punchy" | "calm_operator" | "cfo_authority";
+export type StylePresetId = "default" | "builder_punchy" | "calm_operator" | "technical_explainer" | "cfo_authority";
 export type FormatPresetId = "standard" | "two_sentence" | "short_paragraphs" | "bullet_points";
 
 type StylePreset = {
@@ -38,6 +38,13 @@ export const stylePresets: StylePreset[] = [
     description: "Measured, thoughtful, and confident without sounding cold or generic.",
     instruction:
       "Use a calm operator voice. Keep it measured, thoughtful, and confident. Avoid aggressive framing and avoid hype.",
+  },
+  {
+    id: "technical_explainer",
+    label: "Technical explainer",
+    description: "Clear, concrete explanation for product, engineering, and workflow lessons.",
+    instruction:
+      "Use a clear technical explainer voice. Make the implementation or workflow lesson concrete without becoming too detailed or tutorial-like.",
   },
   {
     id: "cfo_authority",

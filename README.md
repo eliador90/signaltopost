@@ -1,153 +1,112 @@
 # SignalToPost
 
-SignalToPost is a private Telegram-first AI content agent for one user. It captures ideas from Telegram, turns them into X and LinkedIn drafts, and lets the user review them quickly.
+SignalToPost is a self-hosted, Telegram-first AI writing and publishing cockpit. It turns raw notes and GitHub activity into reviewed X and LinkedIn drafts, then keeps approval, rewriting, scheduling, and publishing close to the chat workflow.
 
-## Status
+It is built for one operator or small team running their own credentials. This is not a hosted service: forks need their own Telegram bot, OpenAI key, database, deployment, and optional social/GitHub credentials.
 
-Current project status:
+## What It Does
 
-1. Production deployment is live on Vercel with Neon Postgres.
-2. Telegram webhook is running against the hosted app.
-3. GitHub Actions can trigger the protected cron routes.
-4. Hosted X direct posting is validated.
-5. Hosted LinkedIn manual fallback is validated.
-6. GitHub webhook ingestion is validated in production.
-7. Dashboard actions and Telegram handoff are live in production.
-8. The production automation path is now request-driven by default so Neon can scale to zero between explicit uses.
+- Captures ideas from Telegram messages.
+- Normalizes rough notes with OpenAI.
+- Generates X and LinkedIn draft candidates.
+- Lets you choose style and format presets before generation.
+- Sends drafts back to Telegram for approve, reject, rewrite, schedule, or publish actions.
+- Ingests GitHub commits, merged pull requests, issues, releases, and repository context.
+- Supports on-demand GitHub activity requests from Telegram.
+- Publishes directly to X when credentials are configured.
+- Falls back to manual LinkedIn posting.
+- Provides a private dashboard for ideas, drafts, jobs, integration status, and defaults.
 
-## Current scope
+## Stack
 
-Current implementation covers:
+- Next.js App Router
+- TypeScript
+- Prisma + Postgres
+- OpenAI
+- Telegram Bot API
+- GitHub webhooks and REST API
+- X API
+- Vercel + Neon
 
-1. Next.js project scaffold with App Router.
-2. Prisma schema for ideas, drafts, feedback, jobs, users, and GitHub events.
-3. Telegram webhook endpoint.
-4. Automatic idea capture from Telegram messages.
-5. OpenAI-powered normalization and draft generation with local fallbacks.
-6. Telegram inline actions for approve, reject, and rewrite.
-7. Scheduling data flow with queued post jobs, quick slots, and natural-language Telegram scheduling input.
-8. Actionable dashboard pages for ideas, drafts, jobs, and settings.
-9. GitHub sync that ingests recent commits, merged pull requests, issues, and repo context from configured repositories.
-10. GitHub webhook ingestion for push, pull request, issue, release, and repository edit events when proactive mode is enabled.
-11. On-demand GitHub activity requests from Telegram for days or ranges such as `yesterday` or `last 7 days`.
-12. GitHub-to-idea summarization so repository activity can become draft candidates.
-13. Daily GitHub idea caps with per-repo throttling to keep proactive volume manageable and reduce API spend.
-14. Morning digest that sends a short summary plus separate Telegram review cards for each recommended draft when manually triggered or proactive mode is restored.
-15. GitHub idea automation and operating-mode toggles in Telegram and on the dashboard.
-16. Protected cron endpoints retained for manual dispatch.
-17. LinkedIn manual publish fallback delivered through Telegram.
-18. Immediate publish from Telegram via the `Post now` button or `/postnow`.
-19. Pre-generation style and format presets with saved per-platform defaults.
-20. Dashboard model switcher with `OPENAI_MODEL` as the deployment fallback.
-21. Better rewrite controls, draft quality scoring, duplicate suppression, and lightweight feedback signals.
-22. Hosted deployment path for Vercel + Neon + manually dispatched GitHub Actions jobs.
-23. Web dashboard actions for triage, publishing, scheduling, canceling jobs, and sending items back into Telegram.
+## Quick Start
 
-## Local setup
+```powershell
+npm install
+Copy-Item .env.example .env
+npx prisma generate
+npx prisma migrate deploy
+npm run dev
+```
 
-1. Install dependencies with `npm install`.
-2. Copy `.env.example` to `.env`.
-3. Point `DATABASE_URL` and `DIRECT_DATABASE_URL` at Postgres.
-4. Run `npx prisma generate`.
-5. Run `npx prisma migrate deploy`.
-6. Start the app with `npm run dev`.
-7. Configure your Telegram bot webhook to point to `/api/telegram`.
-
-## Telegram flow
-
-1. Send a normal message to the bot.
-2. SignalToPost stores the idea and asks which platform you want a draft for.
-3. Choose `X`, `LinkedIn`, or `Both`.
-4. Choose a style preset and a format preset, then optionally add one short note.
-5. It generates only the selected platform drafts.
-6. It sends the drafts back with inline review buttons and clearer sectioned formatting.
-7. Use `/nextidea` to pull the next GitHub idea into Telegram.
-8. Use `/review` to cycle through the open `PENDING_REVIEW` drafts.
-9. Use `/githubideas`, `/githubideas on`, or `/githubideas off` to inspect or control automatic GitHub idea generation.
-10. Ask for GitHub-sourced ideas on demand with phrases like `GitHub activity yesterday`, `social media post from GitHub for last 7 days`, or `draft from GitHub activity on 2026-05-06`.
-11. Approve, reject, use richer rewrite controls, publish immediately, or save a scheduled time with quick slots or a free-form time phrase like `tomorrow 9` or `in 2 hours`.
-12. Use the web dashboard to generate drafts, archive ideas, send ideas or drafts back into Telegram, save scheduled times, post now, or cancel pending jobs.
-
-## GitHub flow
-
-1. Configure `GITHUB_TOKEN`, `GITHUB_USERNAME`, `GITHUB_REPOS`, and `GITHUB_WEBHOOK_SECRET` in `.env`.
-2. Register a GitHub webhook against `/api/github/webhook` for push, pull request, issues, release, and repository events.
-3. Webhook deliveries are verified with `X-Hub-Signature-256`.
-4. Recent repo activity is stored in `github_events`.
-5. If proactive GitHub idea automation is enabled, strong events are summarized into `ideas` with source `GITHUB`.
-6. Automatic GitHub idea generation is capped to avoid backlog overload:
-   - total daily cap via `GITHUB_MAX_IDEAS_PER_DAY`
-   - per-repo daily cap via `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
-7. Draft generation can turn those ideas into pending review drafts.
-8. The `github_sync` workflow remains available as a manual recovery path, not a scheduled ingestion path.
-
-Important reminder:
-
-- Every new GitHub repository you want included in SignalToPost idea generation must be added to `GITHUB_REPOS` and must also get its own webhook pointing to `/api/github/webhook`.
-
-## Progress note
-
-Done so far:
-
-1. Telegram-first idea capture, preset-based draft generation, and review loop.
-2. Natural-language scheduling in Telegram plus web datetime scheduling.
-3. Hosted X posting and LinkedIn manual fallback.
-4. GitHub webhook ingestion with manual recovery workflows retained.
-5. Actionable dashboard controls for ideas, drafts, jobs, operating mode, and GitHub automation.
-6. Telegram commands for review queue access and GitHub idea automation control.
-7. Hosted deployment on Vercel + Neon + GitHub Actions.
-
-Next up:
-
-1. Harden direct X posting against more API edge cases.
-2. Improve morning digest formatting and button flows further.
-3. Consider optional direct LinkedIn posting if a stable path is worth the complexity.
-4. Keep refining post-generation validation and taste-memory scoring as more accepted and rejected examples accumulate.
-5. Consider exact-time one-shot publishing if scheduled publishing becomes important again.
-
-## Important env vars
-
-Core:
+Then configure at least:
 
 - `DATABASE_URL`
 - `DIRECT_DATABASE_URL`
-- `APP_URL`
-- `TIMEZONE`
-
-Telegram:
-
+- `OPENAI_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_ID`
 - `TELEGRAM_WEBHOOK_SECRET`
+- `DASHBOARD_SECRET`
 
-OpenAI:
+Register your Telegram webhook against:
 
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL` as the fallback when no dashboard model override is saved
+```text
+https://<your-app-url>/api/telegram
+```
 
-GitHub:
+For a fuller walkthrough, see [docs/getting-started.md](docs/getting-started.md).
 
-- `GITHUB_TOKEN`
-- `GITHUB_USERNAME`
-- `GITHUB_REPOS`
-- `GITHUB_WEBHOOK_SECRET`
-- `GITHUB_MAX_IDEAS_PER_DAY`
-- `GITHUB_MAX_IDEAS_PER_REPO_PER_DAY`
+## Configuration
 
-Cron:
+All configuration is environment-variable based. The most important optional areas are:
 
-- `CRON_SECRET` must be set. Empty secrets are rejected by cron routes.
+- Content voice: `CONTENT_PROFILE_CONTEXT`, `CONTENT_PROFILE_THEMES`, `CONTENT_PROFILE_VOICE_RULES`, `CONTENT_PROFILE_AVOID_RULES`
+- GitHub ingestion: `GITHUB_TOKEN`, `GITHUB_USERNAME`, `GITHUB_REPOS`, `GITHUB_WEBHOOK_SECRET`
+- X direct posting: `X_API_KEY`, `X_API_KEY_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`
+- Protected routes: `DASHBOARD_SECRET`, `CRON_SECRET`
 
-Dashboard:
+`GITHUB_REPOS` accepts either `repo-name` entries that use `GITHUB_USERNAME` as the owner, or explicit `owner/repo-name` entries for mixed personal and organization repositories.
 
-- `DASHBOARD_SECRET` protects the private web dashboard with HTTP Basic Auth in production. The username can be anything; the password must match this secret.
+The built-in content profile is the original Zurich founder-operator / fractional CFO voice. Leave the profile variables empty to use it, or set them to make a fork sound like you.
 
-## Current limitations
+See [docs/configuration.md](docs/configuration.md) and [docs/customization.md](docs/customization.md).
 
-1. Natural-language scheduling is intentionally lightweight and works best for phrases like `tomorrow 9`, `monday 14:30`, `in 2 hours`, or explicit dates.
-2. X direct posting depends on valid X API credentials and credits.
-3. LinkedIn currently uses manual publish fallback rather than direct posting.
-4. GitHub webhook delivery must be configured explicitly in GitHub; the `github_sync` action remains only as a manual fallback.
-5. On-demand mode attempts to disable configured GitHub webhooks. The GitHub token needs webhook administration permission for that sync to work.
-6. Scheduled publishing is no longer polled every 15 minutes. Saved scheduled times are queue metadata unless you manually run publishing.
-7. The dashboard is operational for control and handoff, but Telegram remains the primary place for refinement and approval.
+## Deployment
+
+The recommended path is Vercel for the app and Neon for Postgres. Deploy the Next.js app, add the same environment variables in Vercel, run Prisma migrations against the production database, and register Telegram/GitHub webhooks against the production URL.
+
+See [docs/deployment.md](docs/deployment.md).
+
+## Security Notes
+
+- Never commit `.env`, database dumps, build output, or local tool folders.
+- The dashboard is private and should be protected with `DASHBOARD_SECRET`.
+- Cron routes require `CRON_SECRET`.
+- Telegram and GitHub webhook secrets should be long random values.
+- `TELEGRAM_ALLOWED_CHAT_ID` is strongly recommended for single-user safety.
+- GitHub and X tokens should be scoped as narrowly as their platform allows.
+
+See [SECURITY.md](SECURITY.md).
+
+## Current Limitations
+
+- SignalToPost is intentionally self-hosted and single-operator oriented.
+- LinkedIn currently uses a manual publish fallback.
+- GitHub webhooks must be configured per repository.
+- Scheduled times are stored as queue metadata unless you run publishing manually or enable a scheduler.
+- Natural-language scheduling is lightweight and works best for phrases such as `tomorrow 9`, `monday 14:30`, or `2026-05-08 09:00`.
+
+## Roadmap Ideas
+
+- Direct LinkedIn posting if the API path is worth the complexity.
+- A richer setup wizard once the docs prove the shape.
+- More built-in content profiles and preset examples.
+- Stronger analytics around accepted/rejected drafts.
+
+## Contributing
+
+Small, practical improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { env } from "@/lib/env";
+import { env, getConfiguredGithubRepos } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { requireDashboardAuth } from "@/lib/dashboardAuth";
 import { logger } from "@/lib/logger";
@@ -106,9 +106,64 @@ export default async function SettingsPage() {
   const user = (await prisma.user.findFirst()) as
     | (Awaited<ReturnType<typeof prisma.user.findFirst>> & { automationEnabled?: boolean })
     | null;
+  const githubRepos = getConfiguredGithubRepos();
+  const setupItems = [
+    setupItem("Database", env.DATABASE_URL, "Required"),
+    setupItem("OpenAI API key", env.OPENAI_API_KEY, "Required for AI cleanup, drafts, rewrites, and summaries"),
+    setupItem("Telegram bot token", env.TELEGRAM_BOT_TOKEN, "Required for Telegram workflow"),
+    setupItem("Telegram webhook secret", env.TELEGRAM_WEBHOOK_SECRET, "Recommended for webhook verification"),
+    setupItem("Allowed Telegram chat", env.TELEGRAM_ALLOWED_CHAT_ID, "Recommended for single-user safety"),
+    setupItem("Dashboard secret", env.DASHBOARD_SECRET, "Required in production"),
+    setupItem("Cron secret", env.CRON_SECRET, "Required for hosted cron routes"),
+    {
+      label: "GitHub repositories",
+      configured: githubRepos.length > 0,
+      note: githubRepos.length > 0 ? `${githubRepos.length} configured` : "Optional",
+    },
+    setupItem("GitHub token", env.GITHUB_TOKEN, "Optional for GitHub ingestion"),
+    setupItem("GitHub webhook secret", env.GITHUB_WEBHOOK_SECRET, "Required if GitHub webhooks are enabled"),
+    setupItem("X credentials", env.X_API_KEY && env.X_API_KEY_SECRET && env.X_ACCESS_TOKEN && env.X_ACCESS_TOKEN_SECRET, "Optional direct posting"),
+    setupItem("LinkedIn access token", env.LINKEDIN_ACCESS_TOKEN, "Optional; manual fallback works without it"),
+  ];
 
   return (
     <div className="grid">
+      <section className="card">
+        <h2>Setup checklist</h2>
+        <p className="muted">
+          Secret values are hidden here. This page only shows whether each integration appears configured.
+        </p>
+        <div className="list">
+          {setupItems.map((item) => (
+            <div className="item" key={item.label}>
+              <header>
+                <h3>{item.label}</h3>
+                <span className={`status ${item.configured ? "status-approved" : "status-pending_review"}`}>
+                  {item.configured ? "configured" : "missing"}
+                </span>
+              </header>
+              <p className="muted">{item.note}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="card">
+        <h2>Public endpoints</h2>
+        <div className="list">
+          <div className="item">
+            <strong>Telegram webhook</strong>
+            <p className="muted mono">/api/telegram</p>
+          </div>
+          <div className="item">
+            <strong>GitHub webhook</strong>
+            <p className="muted mono">/api/github/webhook</p>
+          </div>
+          <div className="item">
+            <strong>Health check</strong>
+            <p className="muted mono">/api/health</p>
+          </div>
+        </div>
+      </section>
       <section className="card">
         <h2>Environment</h2>
         <div className="list">
@@ -307,4 +362,12 @@ function PresetSelect({
 function nullableValue(value: FormDataEntryValue | null) {
   const stringValue = String(value ?? "").trim();
   return stringValue || null;
+}
+
+function setupItem(label: string, value: unknown, note: string) {
+  return {
+    label,
+    configured: Boolean(typeof value === "string" ? value.trim() : value),
+    note,
+  };
 }
