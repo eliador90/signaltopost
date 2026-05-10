@@ -36,6 +36,8 @@ Capture an idea in Telegram, choose drafting preferences, and review the generat
 
 ## Quick Start
 
+Use Node.js 22 or newer. The repo includes an `.nvmrc` for Node 22, and current checks also pass on Node 24.
+
 ```powershell
 npm install
 Copy-Item .env.example .env
